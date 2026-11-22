@@ -15,8 +15,10 @@ import {
   FaHome
 } from 'react-icons/fa'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const ORDER_STATUSES = [
   'Pending',
@@ -51,13 +53,12 @@ const AdminDashboard = () => {
     { name: 'Products', icon: FaUtensils }
   ]
 
-  // Get Login Token
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token')
 
     if (!token) {
       navigate('/login')
-      throw new Error('Please login first')
+      throw new Error('Please login first.')
     }
 
     return {
@@ -66,7 +67,30 @@ const AdminDashboard = () => {
     }
   }
 
-  // Fetch Dashboard Data
+  const fetchAPI = async (url, options = {}) => {
+    const response = await fetch(url, options)
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.dispatchEvent(new Event('authChange'))
+      navigate('/login')
+      throw new Error('Login session expired. Please login again.')
+    }
+
+    if (response.status === 403) {
+      throw new Error('Admin permission required.')
+    }
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Request failed.')
+    }
+
+    return data
+  }
+
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     setErrors({})
@@ -82,26 +106,10 @@ const AdminDashboard = () => {
 
       const results = await Promise.allSettled(
         requests.map(async request => {
-          const response = await fetch(request.url, {
+          const data = await fetchAPI(request.url, {
             method: 'GET',
             headers
           })
-
-          const data = await response.json()
-
-          if (response.status === 401) {
-            throw new Error('Login session expired. Please login again.')
-          }
-
-          if (response.status === 403) {
-            throw new Error('Admin permission required.')
-          }
-
-          if (!response.ok || !data.ok) {
-            throw new Error(
-              data.message || `Unable to load ${request.key}`
-            )
-          }
 
           return { key: request.key, data }
         })
@@ -134,7 +142,7 @@ const AdminDashboard = () => {
       setErrors(newErrors)
     } catch (error) {
       setErrors({
-        dashboard: error.message || 'Unable to load dashboard'
+        dashboard: error.message || 'Unable to load dashboard.'
       })
     } finally {
       setLoading(false)
@@ -145,7 +153,6 @@ const AdminDashboard = () => {
     fetchDashboardData()
   }, [fetchDashboardData])
 
-  // Update Order Status
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingOrders(prev => ({
       ...prev,
@@ -158,7 +165,7 @@ const AdminDashboard = () => {
     try {
       const headers = getAuthHeaders()
 
-      const response = await fetch(
+      const data = await fetchAPI(
         `${API_URL}/orders/${orderId}/status`,
         {
           method: 'PUT',
@@ -169,24 +176,14 @@ const AdminDashboard = () => {
         }
       )
 
-      const data = await response.json()
-
-      if (response.status === 401) {
-        throw new Error('Login session expired. Please login again.')
-      }
-
-      if (response.status === 403) {
-        throw new Error('Admin permission required.')
-      }
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Order status update failed')
-      }
-
       setOrders(prev =>
         prev.map(order =>
           order._id === orderId
-            ? { ...order, orderStatus: newStatus }
+            ? {
+                ...order,
+                ...(data.order || {}),
+                orderStatus: newStatus
+              }
             : order
         )
       )
@@ -204,7 +201,6 @@ const AdminDashboard = () => {
     }
   }
 
-  // Logout
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -257,7 +253,6 @@ const AdminDashboard = () => {
     setStatusError('')
   }
 
-  // Overview
   const renderOverview = () => (
     <div className="space-y-7">
       <div>
@@ -329,7 +324,7 @@ const AdminDashboard = () => {
                     {formatPrice(order.totalAmount)}
                   </p>
                   <p className="mt-1 text-xs text-[#e63b32]">
-                    {order.orderStatus}
+                    {order.orderStatus || 'Pending'}
                   </p>
                 </div>
               </div>
@@ -396,7 +391,6 @@ const AdminDashboard = () => {
     </div>
   )
 
-  // Users
   const renderUsers = () => (
     <div>
       <div className="mb-6">
@@ -410,7 +404,7 @@ const AdminDashboard = () => {
         <div className="rounded-xl border border-red-200 bg-white p-6 text-sm text-red-600">
           Users API available nahi hai: {errors.users}
           <p className="mt-2 text-xs text-gray-500">
-            Backend mein GET /api/v1/users endpoint add karna hoga.
+            Backend mein GET /api/v1/users endpoint check karna hoga.
           </p>
         </div>
       ) : (
@@ -425,6 +419,7 @@ const AdminDashboard = () => {
                   <th className="p-4">Joined</th>
                 </tr>
               </thead>
+
               <tbody>
                 {users.map(user => (
                   <tr key={user._id} className="border-t border-gray-100">
@@ -436,7 +431,9 @@ const AdminDashboard = () => {
                     </td>
                     <td className="p-4">
                       <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">
-                        {user.role === 'admin' ? 'Admin' : 'Customer'}
+                        {user.role === 'admin' || user.isAdmin
+                          ? 'Admin'
+                          : 'Customer'}
                       </span>
                     </td>
                     <td className="p-4 text-gray-500">
@@ -460,7 +457,6 @@ const AdminDashboard = () => {
     </div>
   )
 
-  // Orders
   const renderOrders = () => (
     <div>
       <div className="mb-6">
@@ -548,10 +544,7 @@ const AdminDashboard = () => {
                           order.orderStatus === 'Cancelled'
                         }
                         onChange={event =>
-                          handleStatusChange(
-                            order._id,
-                            event.target.value
-                          )
+                          handleStatusChange(order._id, event.target.value)
                         }
                         className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold outline-none transition focus:border-[#e63b32] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                       >
@@ -591,7 +584,6 @@ const AdminDashboard = () => {
     </div>
   )
 
-  // Products
   const renderProducts = () => (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -637,6 +629,9 @@ const AdminDashboard = () => {
                         <img
                           src={product.image}
                           alt={product.name}
+                          onError={event => {
+                            event.currentTarget.style.display = 'none'
+                          }}
                           className="h-12 w-12 rounded-lg object-cover"
                         />
                         <span className="font-bold">{product.name}</span>
@@ -693,7 +688,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] font-['Arial',sans-serif] text-[#242424]">
-
       {sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(false)}
@@ -705,7 +699,6 @@ const AdminDashboard = () => {
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-[#242424] text-white transition-transform duration-300 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-6">
           <div>
             <h1 className="text-xl font-black">
@@ -719,6 +712,7 @@ const AdminDashboard = () => {
           <button
             onClick={() => setSidebarOpen(false)}
             className="text-gray-400 lg:hidden"
+            aria-label="Close menu"
           >
             <FaTimes />
           </button>
@@ -769,12 +763,12 @@ const AdminDashboard = () => {
       </aside>
 
       <main className="min-h-screen lg:ml-[260px]">
-
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-4 sm:px-7">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
               className="text-xl lg:hidden"
+              aria-label="Open menu"
             >
               <FaBars />
             </button>
@@ -820,7 +814,6 @@ const AdminDashboard = () => {
             </>
           )}
         </div>
-
       </main>
     </div>
   )

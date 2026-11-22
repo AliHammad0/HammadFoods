@@ -4,8 +4,13 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { clearCart } from '../redux/slices/cartSlices'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
+
+const formatPrice = price =>
+  `Rs. ${Number(price || 0).toLocaleString('en-PK')}`
 
 const Checkout = () => {
   const dispatch = useDispatch()
@@ -34,7 +39,7 @@ const Checkout = () => {
     return total + price * Number(item.quantity || 1)
   }, 0)
 
-  const deliveryCharges = 0
+  const deliveryCharges = subtotal >= 5000 ? 0 : 250
   const totalAmount = subtotal + deliveryCharges
 
   const handleChange = e => {
@@ -51,7 +56,12 @@ const Checkout = () => {
     setError('')
 
     if (cartItems.length === 0) {
-      setError('Your cart is empty')
+      setError('Your cart is empty.')
+      return
+    }
+
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+      setError('Please fill in all required fields.')
       return
     }
 
@@ -59,7 +69,12 @@ const Checkout = () => {
       setLoading(true)
 
       const orderData = {
-        ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
+        notes: formData.notes.trim(),
+        paymentMethod: 'COD',
         items: cartItems.map(item => ({
           product: item._id || item.id,
           quantity: Number(item.quantity || 1)
@@ -74,10 +89,14 @@ const Checkout = () => {
         body: JSON.stringify(orderData)
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Unable to place order')
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Unable to place order.')
+      }
+
+      if (!data.order) {
+        throw new Error('Order response was incomplete. Please contact support.')
       }
 
       dispatch(clearCart())
@@ -88,7 +107,7 @@ const Checkout = () => {
         }
       })
     } catch (err) {
-      setError(err.message || 'Something went wrong')
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -96,7 +115,10 @@ const Checkout = () => {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-[65vh] flex flex-col items-center justify-center px-4 text-center font-[Arial]">
+      <div
+        className="flex min-h-[65vh] flex-col items-center justify-center px-4 text-center"
+        style={{ fontFamily: 'Arial, sans-serif' }}
+      >
         <h2 className="text-2xl font-bold text-gray-900">
           Your Cart is Empty
         </h2>
@@ -107,7 +129,7 @@ const Checkout = () => {
 
         <button
           onClick={() => navigate('/')}
-          className="mt-6 rounded-lg bg-red-600 px-7 py-3 font-semibold text-white hover:bg-red-700"
+          className="mt-6 rounded-lg bg-[#e96824] px-7 py-3 font-semibold text-white transition hover:bg-[#cf5418]"
         >
           Explore Menu
         </button>
@@ -116,11 +138,14 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-12 font-[Arial] sm:px-6">
+    <div
+      className="min-h-screen bg-gray-50 px-4 py-12 sm:px-6"
+      style={{ fontFamily: 'Arial, sans-serif' }}
+    >
       <div className="mx-auto max-w-6xl">
 
         <div className="mb-10">
-          <p className="text-sm font-semibold uppercase tracking-[3px] text-red-600">
+          <p className="text-sm font-semibold uppercase tracking-[3px] text-[#e96824]">
             Hammad Foods
           </p>
 
@@ -137,8 +162,6 @@ const Checkout = () => {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-8 lg:grid-cols-5"
         >
-
-          {/* Customer Details */}
           <div className="space-y-6 lg:col-span-3">
 
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
@@ -159,8 +182,11 @@ const Checkout = () => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Enter your full name"
+                    autoComplete="name"
+                    minLength={2}
+                    maxLength={60}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                   />
                 </div>
 
@@ -177,8 +203,9 @@ const Checkout = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="03XXXXXXXXX"
+                      autoComplete="tel"
                       required
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                     />
                   </div>
 
@@ -193,7 +220,8 @@ const Checkout = () => {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="example@email.com"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                      autoComplete="email"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                     />
                   </div>
 
@@ -209,9 +237,9 @@ const Checkout = () => {
                     value={formData.address}
                     onChange={handleChange}
                     placeholder="House number, street, area, city..."
-                    rows="4"
+                    rows={4}
                     required
-                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                   />
                 </div>
 
@@ -225,21 +253,20 @@ const Checkout = () => {
                     value={formData.notes}
                     onChange={handleChange}
                     placeholder="Any special instructions?"
-                    rows="3"
-                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                   />
                 </div>
 
               </div>
             </div>
 
-            {/* Payment Method */}
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="mb-5 text-xl font-bold text-gray-900">
                 Payment Method
               </h2>
 
-              <div className="flex items-center gap-4 rounded-xl border-2 border-red-500 bg-red-50 p-5">
+              <div className="flex items-center gap-4 rounded-xl border-2 border-[#e96824] bg-orange-50 p-5">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl">
                   💵
                 </div>
@@ -254,13 +281,12 @@ const Checkout = () => {
                   </p>
                 </div>
 
-                <div className="ml-auto h-5 w-5 rounded-full border-[6px] border-red-600 bg-white" />
+                <div className="ml-auto h-5 w-5 rounded-full border-[6px] border-[#e96824] bg-white" />
               </div>
             </div>
 
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-2">
             <div className="sticky top-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
 
@@ -285,6 +311,9 @@ const Checkout = () => {
                       <img
                         src={item.image}
                         alt={item.name}
+                        onError={event => {
+                          event.currentTarget.style.display = 'none'
+                        }}
                         className="h-16 w-16 rounded-xl bg-gray-100 object-cover"
                       />
 
@@ -299,7 +328,7 @@ const Checkout = () => {
                       </div>
 
                       <p className="whitespace-nowrap font-semibold text-gray-900">
-                        Rs. {(price * Number(item.quantity || 1)).toLocaleString()}
+                        {formatPrice(price * Number(item.quantity || 1))}
                       </p>
                     </div>
                   )
@@ -312,7 +341,7 @@ const Checkout = () => {
               <div className="space-y-4 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>Rs. {subtotal.toLocaleString()}</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
 
                 <div className="flex justify-between text-gray-600">
@@ -320,9 +349,15 @@ const Checkout = () => {
                   <span>
                     {deliveryCharges === 0
                       ? 'Free'
-                      : `Rs. ${deliveryCharges.toLocaleString()}`}
+                      : formatPrice(deliveryCharges)}
                   </span>
                 </div>
+
+                {subtotal < 5000 && (
+                  <p className="text-xs text-gray-500">
+                    Add {formatPrice(5000 - subtotal)} more to get free delivery.
+                  </p>
+                )}
               </div>
 
               <div className="my-6 border-t border-gray-200" />
@@ -332,13 +367,16 @@ const Checkout = () => {
                   Total
                 </span>
 
-                <span className="text-2xl font-bold text-red-600">
-                  Rs. {totalAmount.toLocaleString()}
+                <span className="text-2xl font-bold text-[#e96824]">
+                  {formatPrice(totalAmount)}
                 </span>
               </div>
 
               {error && (
-                <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                <div
+                  role="alert"
+                  className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600"
+                >
                   {error}
                 </div>
               )}
@@ -346,7 +384,7 @@ const Checkout = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-7 w-full rounded-xl bg-red-600 px-5 py-4 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-7 w-full rounded-xl bg-[#e96824] px-5 py-4 font-bold text-white transition hover:bg-[#cf5418] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Placing Order...' : 'Place Order'}
               </button>

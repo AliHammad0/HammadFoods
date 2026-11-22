@@ -9,8 +9,10 @@ import {
   FaUtensils
 } from 'react-icons/fa'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const Login = () => {
   const navigate = useNavigate()
@@ -24,14 +26,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -42,13 +44,20 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password
+        })
       })
 
       const data = await response.json()
 
-      if (!response.ok) {
+      if (!response.ok || data.ok === false) {
         throw new Error(data.message || 'Login failed')
+      }
+
+      if (!data.token || !data.user) {
+        throw new Error('Login response is incomplete. Please try again.')
       }
 
       localStorage.setItem('token', data.token)
@@ -56,7 +65,7 @@ const Login = () => {
 
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -64,7 +73,7 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-screen bg-white px-5 py-12 flex items-center justify-center"
+      className="flex min-h-screen items-center justify-center bg-white px-5 py-12"
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
       <div className="w-full max-w-md">
@@ -73,8 +82,9 @@ const Login = () => {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 text-white">
             <FaUtensils size={21} />
           </div>
+
           <span className="text-2xl font-extrabold tracking-tight text-[#20201e]">
-            HAMAD <span className="text-orange-500">FOODS</span>
+            HAMMAD <span className="text-orange-500">FOODS</span>
           </span>
         </Link>
 
@@ -111,6 +121,7 @@ const Login = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
+                  autoComplete="email"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500"
                 />
               </div>
@@ -131,12 +142,14 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-12 text-sm outline-none transition focus:border-orange-500"
                 />
 
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500"
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -145,7 +158,10 @@ const Login = () => {
             </div>
 
             {error && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+              <div
+                role="alert"
+                className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+              >
                 {error}
               </div>
             )}
@@ -153,7 +169,7 @@ const Login = () => {
             <button
               disabled={loading}
               type="submit"
-              className="w-full rounded-xl bg-[#e96824] py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:opacity-60"
+              className="w-full rounded-xl bg-[#e96824] py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Logging in...' : 'Login to Account'}
             </button>
@@ -173,7 +189,7 @@ const Login = () => {
         </div>
 
         <p className="mt-7 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} Hamad Foods. All rights reserved.
+          © {new Date().getFullYear()} Hammad Foods. All rights reserved.
         </p>
 
       </div>

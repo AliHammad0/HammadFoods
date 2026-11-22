@@ -11,8 +11,10 @@ import {
   FaUtensils
 } from 'react-icons/fa'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const Signup = () => {
   const navigate = useNavigate()
@@ -28,14 +30,14 @@ const Signup = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -51,8 +53,12 @@ const Signup = () => {
 
       const data = await response.json()
 
-      if (!response.ok) {
+      if (!response.ok || data.ok === false) {
         throw new Error(data.message || 'Signup failed')
+      }
+
+      if (!data.token || !data.user) {
+        throw new Error('Account created, but login details were not received.')
       }
 
       localStorage.setItem('token', data.token)
@@ -60,7 +66,7 @@ const Signup = () => {
 
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -68,7 +74,7 @@ const Signup = () => {
 
   return (
     <div
-      className="min-h-screen bg-white px-5 py-12 flex items-center justify-center"
+      className="flex min-h-screen items-center justify-center bg-white px-5 py-12"
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
       <div className="w-full max-w-md">
@@ -79,7 +85,7 @@ const Signup = () => {
           </div>
 
           <span className="text-2xl font-extrabold tracking-tight text-[#20201e]">
-            HAMAD <span className="text-orange-500">FOODS</span>
+            HAMMAD <span className="text-orange-500">FOODS</span>
           </span>
         </Link>
 
@@ -87,7 +93,7 @@ const Signup = () => {
 
           <div className="mb-8">
             <span className="text-xs font-bold uppercase tracking-[3px] text-orange-600">
-              Join Hamad Foods
+              Join Hammad Foods
             </span>
 
             <h1 className="mt-3 text-3xl font-extrabold text-[#20201e]">
@@ -95,7 +101,7 @@ const Signup = () => {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-gray-500">
-              Create your account and become part of Hamad Foods.
+              Create your account and become part of Hammad Foods.
             </p>
           </div>
 
@@ -117,6 +123,8 @@ const Signup = () => {
                   onChange={handleChange}
                   placeholder="Enter your full name"
                   minLength={2}
+                  maxLength={60}
+                  autoComplete="name"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500"
                 />
               </div>
@@ -137,6 +145,7 @@ const Signup = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
+                  autoComplete="email"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500"
                 />
               </div>
@@ -156,6 +165,7 @@ const Signup = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="03XX XXXXXXX"
+                  autoComplete="tel"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500"
                 />
               </div>
@@ -177,12 +187,14 @@ const Signup = () => {
                   onChange={handleChange}
                   placeholder="Minimum 8 characters"
                   minLength={8}
+                  autoComplete="new-password"
                   className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-12 text-sm outline-none transition focus:border-orange-500"
                 />
 
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500"
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -191,7 +203,10 @@ const Signup = () => {
             </div>
 
             {error && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+              <div
+                role="alert"
+                className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+              >
                 {error}
               </div>
             )}
@@ -199,7 +214,7 @@ const Signup = () => {
             <button
               disabled={loading}
               type="submit"
-              className="w-full rounded-xl bg-[#e96824] py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:opacity-60"
+              className="w-full rounded-xl bg-[#e96824] py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -219,7 +234,7 @@ const Signup = () => {
         </div>
 
         <p className="mt-7 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} Hamad Foods. All rights reserved.
+          © {new Date().getFullYear()} Hammad Foods. All rights reserved.
         </p>
 
       </div>
