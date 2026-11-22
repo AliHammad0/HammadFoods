@@ -1,20 +1,23 @@
 
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   FaUser,
   FaEnvelope,
   FaPhone,
   FaEdit,
   FaSave,
-  FaUtensils,
   FaCalendarAlt
 } from 'react-icons/fa'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const MyProfile = () => {
+  const navigate = useNavigate()
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -42,20 +45,28 @@ const MyProfile = () => {
       const token = localStorage.getItem('token')
 
       if (!token) {
-        setError('Please login to view your profile.')
         return
       }
 
       const response = await fetch(`${API_URL}/users/my-profile`, {
+        method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Unable to load profile')
+      if (response.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.dispatchEvent(new Event('authChange'))
+        navigate('/login')
+        return
+      }
+
+      if (!response.ok || data.ok === false || !data.user) {
+        throw new Error(data.message || 'Unable to load profile.')
       }
 
       setProfile(data.user)
@@ -66,9 +77,8 @@ const MyProfile = () => {
       })
 
       localStorage.setItem('user', JSON.stringify(data.user))
-
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Something went wrong.')
     } finally {
       setLoading(false)
     }
@@ -78,14 +88,14 @@ const MyProfile = () => {
     fetchProfile()
   }, [])
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
 
     try {
@@ -95,19 +105,35 @@ const MyProfile = () => {
 
       const token = localStorage.getItem('token')
 
+      if (!token) {
+        navigate('/login')
+        return
+      }
+
       const response = await fetch(`${API_URL}/users/my-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          phone: formData.phone.trim()
+        })
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Profile update failed')
+      if (response.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.dispatchEvent(new Event('authChange'))
+        navigate('/login')
+        return
+      }
+
+      if (!response.ok || data.ok === false || !data.user) {
+        throw new Error(data.message || 'Profile update failed.')
       }
 
       setProfile(data.user)
@@ -121,9 +147,8 @@ const MyProfile = () => {
 
       setEditing(false)
       setMessage('Your profile has been updated successfully.')
-
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Something went wrong.')
     } finally {
       setSaving(false)
     }
@@ -131,7 +156,10 @@ const MyProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center bg-[#faf9f6]">
+      <div
+        className="flex min-h-[70vh] items-center justify-center bg-[#faf9f6]"
+        style={{ fontFamily: 'Arial, sans-serif' }}
+      >
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-100 border-t-orange-500" />
       </div>
     )
@@ -145,15 +173,18 @@ const MyProfile = () => {
       >
         <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow-sm">
           <FaUser className="mx-auto text-5xl text-orange-500" />
+
           <h1 className="mt-5 text-2xl font-extrabold text-[#20201e]">
             Login Required
           </h1>
+
           <p className="mt-3 text-sm text-gray-500">
             Please login to access your profile.
           </p>
+
           <Link
             to="/login"
-            className="mt-7 inline-block rounded-xl bg-[#e96824] px-8 py-3 font-bold text-white"
+            className="mt-7 inline-block rounded-xl bg-[#e96824] px-8 py-3 font-bold text-white transition hover:bg-[#cf5418]"
           >
             Login Now
           </Link>
@@ -173,9 +204,11 @@ const MyProfile = () => {
           <span className="text-xs font-bold uppercase tracking-[3px] text-orange-600">
             Account Settings
           </span>
+
           <h1 className="mt-3 text-3xl font-extrabold text-[#20201e] sm:text-4xl">
             My Profile
           </h1>
+
           <p className="mt-3 text-sm text-gray-500">
             Manage your personal information and account details.
           </p>
@@ -193,11 +226,13 @@ const MyProfile = () => {
                 <h2 className="text-2xl font-extrabold text-white">
                   {profile.name}
                 </h2>
+
                 <p className="mt-2 text-sm text-gray-300">
                   {profile.email}
                 </p>
+
                 <span className="mt-3 inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-bold capitalize text-orange-300">
-                  {profile.role || 'user'} Account
+                  {profile.role || (profile.isAdmin ? 'admin' : 'user')} Account
                 </span>
               </div>
             </div>
@@ -210,6 +245,7 @@ const MyProfile = () => {
                 <h3 className="text-xl font-extrabold text-[#20201e]">
                   Personal Information
                 </h3>
+
                 <p className="mt-2 text-sm text-gray-500">
                   Update your account information below.
                 </p>
@@ -217,6 +253,7 @@ const MyProfile = () => {
 
               {!editing && (
                 <button
+                  type="button"
                   onClick={() => {
                     setEditing(true)
                     setError('')
@@ -231,13 +268,19 @@ const MyProfile = () => {
             </div>
 
             {error && (
-              <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600">
+              <div
+                role="alert"
+                className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600"
+              >
                 {error}
               </div>
             )}
 
             {message && (
-              <div className="mb-6 rounded-xl bg-green-50 p-4 text-sm text-green-700">
+              <div
+                role="status"
+                className="mb-6 rounded-xl bg-green-50 p-4 text-sm text-green-700"
+              >
                 {message}
               </div>
             )}
@@ -252,6 +295,7 @@ const MyProfile = () => {
 
                   <div className="relative">
                     <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+
                     <input
                       type="text"
                       name="name"
@@ -261,6 +305,7 @@ const MyProfile = () => {
                       disabled={!editing}
                       value={formData.name}
                       onChange={handleChange}
+                      autoComplete="name"
                       className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-70"
                       placeholder="Your full name"
                     />
@@ -274,13 +319,15 @@ const MyProfile = () => {
 
                   <div className="relative">
                     <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+
                     <input
                       type="email"
                       disabled
-                      value={profile.email}
+                      value={profile.email || ''}
                       className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 py-4 pl-11 pr-4 text-sm text-gray-500 outline-none"
                     />
                   </div>
+
                   <p className="mt-2 text-xs text-gray-400">
                     Email address cannot be changed.
                   </p>
@@ -293,12 +340,14 @@ const MyProfile = () => {
 
                   <div className="relative">
                     <FaPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+
                     <input
                       type="tel"
                       name="phone"
                       disabled={!editing}
                       value={formData.phone}
                       onChange={handleChange}
+                      autoComplete="tel"
                       className="w-full rounded-xl border border-gray-200 bg-[#faf9f6] py-4 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500 disabled:cursor-not-allowed disabled:opacity-70"
                       placeholder="Enter phone number"
                     />
@@ -312,6 +361,7 @@ const MyProfile = () => {
 
                   <div className="relative">
                     <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+
                     <input
                       type="text"
                       disabled
@@ -336,7 +386,7 @@ const MyProfile = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#e96824] px-8 py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:opacity-60"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#e96824] px-8 py-4 text-sm font-bold text-white transition hover:bg-[#cf5418] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <FaSave />
                     {saving ? 'Saving Changes...' : 'Save Changes'}
@@ -350,10 +400,12 @@ const MyProfile = () => {
                         name: profile.name || '',
                         phone: profile.phone || ''
                       })
+
                       setEditing(false)
                       setError('')
+                      setMessage('')
                     }}
-                    className="rounded-xl border border-gray-200 px-8 py-4 text-sm font-bold text-gray-600 transition hover:bg-gray-50"
+                    className="rounded-xl border border-gray-200 px-8 py-4 text-sm font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-60"
                   >
                     Cancel
                   </button>
@@ -369,7 +421,10 @@ const MyProfile = () => {
             to="/my-orders"
             className="rounded-2xl border border-gray-100 bg-white p-6 transition hover:border-orange-300"
           >
-            <h3 className="font-extrabold text-[#20201e]">My Orders</h3>
+            <h3 className="font-extrabold text-[#20201e]">
+              My Orders
+            </h3>
+
             <p className="mt-2 text-sm text-gray-500">
               View and track your food orders.
             </p>
@@ -379,7 +434,10 @@ const MyProfile = () => {
             to="/"
             className="rounded-2xl border border-gray-100 bg-white p-6 transition hover:border-orange-300"
           >
-            <h3 className="font-extrabold text-[#20201e]">Explore Menu</h3>
+            <h3 className="font-extrabold text-[#20201e]">
+              Explore Menu
+            </h3>
+
             <p className="mt-2 text-sm text-gray-500">
               Discover delicious food from our menu.
             </p>
