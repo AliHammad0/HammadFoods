@@ -14,9 +14,6 @@ const app = express()
 
 const port = config.PORT || 8080
 
-// Database Connection
-connectDB()
-
 // Middlewares
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -36,7 +33,13 @@ app.get('/', (req, res) => {
   })
 })
 
-// Server
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`)
-})
+// Local Server
+if (!process.env.VERCEL) {
+  connectDB().then(() => {
+    app.listen(port, () => {
+      console.log(`Server is running on http://localhost:${port}`)
+    })
+  })
+}
+
+export default app

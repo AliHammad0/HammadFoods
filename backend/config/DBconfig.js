@@ -1,28 +1,41 @@
 
 import mongoose from 'mongoose'
-import dns from 'node:dns'
 import * as config from './config.js'
 
-// Google DNS
-dns.setServers([
-  '8.8.8.8',
-  '8.8.4.4'
-])
+const cached = globalThis.mongooseConnection || {
+  conn: null,
+  promise: null
+}
+
+globalThis.mongooseConnection = cached
 
 const connectDB = async () => {
+  if (!config.MONGO_URI) {
+    throw new Error('MONGO_URI is missing. Check your environment variables.')
+  }
+
+  if (cached.conn) {
+    return cached.conn
+  }
+
   try {
-    if (!config.MONGO_URI) {
-      throw new Error('MONGO_URI is missing. Check your .env file.')
+    if (!cached.promise) {
+      cached.promise = mongoose.connect(config.MONGO_URI, {
+        serverSelectionTimeoutMS: 10000
+      })
     }
 
-    const conn = await mongoose.connect(config.MONGO_URI, {
-      serverSelectionTimeoutMS: 10000
-    })
+    cached.conn = await cached.promise
 
-    console.log(`MongoDB Connected: ${conn.connection.host}`)
+    console.log(`MongoDB Connected: ${cached.conn.connection.host}`)
+
+    return cached.conn
   } catch (error) {
+    cached.promise = null
+    cached.conn = null
+
     console.error('MongoDB Connection Error:', error.message)
-    process.exit(1)
+    throw error
   }
 }
 

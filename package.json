@@ -3,7 +3,7 @@
   "name": "hammad-foods",
   "version": "1.0.0",
   "description": "Hammad Foods Backend",
-  "main": "server.js",
+  "main": "backend/server.js",
   "type": "module",
   "scripts": {
     "start": "node backend/server.js",
