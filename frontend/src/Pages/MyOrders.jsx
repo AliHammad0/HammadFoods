@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   FaBoxOpen,
   FaCalendarAlt,
@@ -9,10 +9,14 @@ import {
   FaSyncAlt
 } from 'react-icons/fa'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const MyOrders = () => {
+  const navigate = useNavigate()
+
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -25,8 +29,7 @@ const MyOrders = () => {
       const token = localStorage.getItem('token')
 
       if (!token) {
-        setError('Please login to view your orders')
-        setLoading(false)
+        setError('Please login to view your orders.')
         return
       }
 
@@ -38,39 +41,51 @@ const MyOrders = () => {
         }
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Unable to fetch your orders')
+      if (response.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.dispatchEvent(new Event('authChange'))
+        navigate('/login')
+        return
       }
 
-      setOrders(data.orders || [])
-    } catch (error) {
-      setError(error.message || 'Something went wrong')
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Unable to fetch your orders.')
+      }
+
+      setOrders(Array.isArray(data.orders) ? data.orders : [])
+    } catch (err) {
+      setError(err.message || 'Something went wrong.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [navigate])
 
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     if (!date) return 'N/A'
 
-    return new Date(date).toLocaleDateString('en-PK', {
+    const parsedDate = new Date(date)
+
+    if (Number.isNaN(parsedDate.getTime())) return 'N/A'
+
+    return parsedDate.toLocaleDateString('en-PK', {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
     })
   }
 
-  const formatPrice = (price) => {
+  const formatPrice = price => {
     return `Rs. ${Number(price || 0).toLocaleString('en-PK')}`
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = status => {
     const colors = {
       Pending: 'bg-yellow-100 text-yellow-700',
       Confirmed: 'bg-blue-100 text-blue-700',
@@ -133,6 +148,7 @@ const MyOrders = () => {
 
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
+                type="button"
                 onClick={fetchOrders}
                 className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
               >
@@ -198,6 +214,7 @@ const MyOrders = () => {
               </p>
 
               <button
+                type="button"
                 onClick={fetchOrders}
                 className="flex items-center gap-2 text-sm font-semibold text-orange-600 transition hover:text-orange-700"
               >
@@ -206,7 +223,7 @@ const MyOrders = () => {
               </button>
             </div>
 
-            {orders.map((order) => (
+            {orders.map(order => (
               <div
                 key={order._id}
                 className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
@@ -219,7 +236,7 @@ const MyOrders = () => {
                     </p>
 
                     <h3 className="mt-1 text-lg font-bold text-gray-900">
-                      #{order.orderNumber}
+                      #{order.orderNumber || order._id}
                     </h3>
 
                     <p className="mt-2 flex items-center gap-2 text-sm text-gray-500">
@@ -229,7 +246,7 @@ const MyOrders = () => {
                   </div>
 
                   <span
-                    className={`w-fit rounded-full px-4 py-2 text-xs font-bold ${getStatusColor(order.orderStatus)}`}
+                    className={`w-fit rounded-full px-4 py-2 text-xs font-bold ${getStatusColor(order.orderStatus || 'Pending')}`}
                   >
                     {order.orderStatus || 'Pending'}
                   </span>
@@ -246,7 +263,10 @@ const MyOrders = () => {
                         {item.image ? (
                           <img
                             src={item.image}
-                            alt={item.name}
+                            alt={item.name || 'Food item'}
+                            onError={event => {
+                              event.currentTarget.style.display = 'none'
+                            }}
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -256,16 +276,16 @@ const MyOrders = () => {
 
                       <div className="min-w-0 flex-1">
                         <h4 className="truncate font-semibold text-gray-900">
-                          {item.name}
+                          {item.name || item.product?.name || 'Food Item'}
                         </h4>
 
                         <p className="mt-1 text-sm text-gray-500">
-                          Quantity: {item.quantity}
+                          Quantity: {item.quantity || 1}
                         </p>
                       </div>
 
                       <p className="shrink-0 text-sm font-bold text-gray-900">
-                        {formatPrice(item.subtotal)}
+                        {formatPrice(item.subtotal ?? item.price * (item.quantity || 1))}
                       </p>
                     </div>
                   ))}
