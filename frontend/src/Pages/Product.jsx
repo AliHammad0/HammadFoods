@@ -20,8 +20,10 @@ import {
   removeFromCart
 } from '../redux/slices/cartSlices'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
 
 const foodImages = [
   'https://g-cdn.blinkco.io/ordering-system/55363/dish_image/1761382396626.jpg',
@@ -44,8 +46,7 @@ const getPrice = product => {
     : price
 }
 
-const getProductId = product =>
-  product._id || product.id
+const getProductId = product => product._id || product.id
 
 const Product = () => {
   const navigate = useNavigate()
@@ -73,7 +74,7 @@ const Product = () => {
         throw new Error(data.message || 'Unable to load products')
       }
 
-      setProducts(data.products || [])
+      setProducts(Array.isArray(data.products) ? data.products : [])
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -133,7 +134,6 @@ const Product = () => {
   // Add to Redux Cart
   const handleAddToCart = product => {
     if (product.isAvailable === false) return
-
     dispatch(addToCart(product))
   }
 
@@ -265,7 +265,6 @@ const Product = () => {
             className="relative flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#e63b32] px-5 text-sm font-bold text-white transition hover:bg-[#c92d25]"
           >
             <FaShoppingBag />
-
             <span>My Cart</span>
 
             <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-[#e63b32]">
@@ -323,7 +322,6 @@ const Product = () => {
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
-
               {categories.map(category => (
                 <button
                   key={category}
@@ -347,7 +345,6 @@ const Product = () => {
                   </span>
                 </button>
               ))}
-
             </div>
 
           </div>
@@ -356,16 +353,11 @@ const Product = () => {
           <div className="mt-5 hidden rounded-xl bg-[#242424] p-5 text-white lg:block">
 
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold">
-                Your Order
-              </p>
-
+              <p className="text-sm font-bold">Your Order</p>
               <FaShoppingBag className="text-[#ff7770]" />
             </div>
 
-            <p className="mt-3 text-3xl font-black">
-              {cartCount}
-            </p>
+            <p className="mt-3 text-3xl font-black">{cartCount}</p>
 
             <p className="text-xs text-gray-400">
               Items in your cart
@@ -374,10 +366,7 @@ const Product = () => {
             <div className="my-4 border-t border-white/10" />
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400">
-                Subtotal
-              </span>
-
+              <span className="text-xs text-gray-400">Subtotal</span>
               <span className="font-bold">
                 {formatPrice(cartTotal)}
               </span>
@@ -391,7 +380,6 @@ const Product = () => {
             </button>
 
           </div>
-
         </aside>
 
         {/* Product Content */}
@@ -482,9 +470,7 @@ const Product = () => {
 
               <FaSearch className="mx-auto text-2xl text-gray-300" />
 
-              <h3 className="mt-4 font-bold">
-                No food found
-              </h3>
+              <h3 className="mt-4 font-bold">No food found</h3>
 
               <p className="mt-2 text-sm text-gray-500">
                 Try searching with another name.
@@ -601,7 +587,6 @@ const Product = () => {
 
                               {/* Price */}
                               <div>
-
                                 <p className="text-base font-black text-[#242424] sm:text-lg">
                                   {formatPrice(price)}
                                 </p>
@@ -611,7 +596,6 @@ const Product = () => {
                                     {formatPrice(item.price)}
                                   </p>
                                 )}
-
                               </div>
 
                               {/* Add / Quantity */}
@@ -695,9 +679,7 @@ const Product = () => {
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
 
               <div>
-                <h2 className="text-xl font-black">
-                  Your Cart
-                </h2>
+                <h2 className="text-xl font-black">Your Cart</h2>
 
                 <p className="mt-1 text-xs text-gray-400">
                   {cartCount} items in your order
@@ -707,6 +689,7 @@ const Product = () => {
               <button
                 onClick={() => setShowCart(false)}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-[#fff0ee] hover:text-[#e63b32]"
+                aria-label="Close cart"
               >
                 <FaTimes />
               </button>
@@ -774,6 +757,7 @@ const Product = () => {
                               handleDecrease(itemId, item.quantity)
                             }
                             className="flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-xs"
+                            aria-label="Decrease quantity"
                           >
                             <FaMinus />
                           </button>
@@ -785,6 +769,7 @@ const Product = () => {
                           <button
                             onClick={() => handleIncrease(itemId)}
                             className="flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-xs"
+                            aria-label="Increase quantity"
                           >
                             <FaPlus />
                           </button>
@@ -826,9 +811,7 @@ const Product = () => {
                 </div>
 
                 <div className="mb-5 flex items-center justify-between">
-                  <span className="font-bold">
-                    Subtotal
-                  </span>
+                  <span className="font-bold">Subtotal</span>
 
                   <span className="text-xl font-black">
                     {formatPrice(cartTotal)}
@@ -873,6 +856,3 @@ const Product = () => {
 }
 
 export default Product
-
-
-//Order validation failed: customer.address: Path `customer.address` is required., customer.phone: Path `customer.phone` is required., customer.name: Path `customer.name` is required.
