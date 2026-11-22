@@ -21,7 +21,7 @@ import {
 } from '../redux/slices/cartSlices'
 
 const API_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+  import.meta.env.VITE_API_URL || 'https://hammadfoods-backend.vercel.app//api/v1'
 
 const foodImages = [
   'https://g-cdn.blinkco.io/ordering-system/55363/dish_image/1761382396626.jpg',
