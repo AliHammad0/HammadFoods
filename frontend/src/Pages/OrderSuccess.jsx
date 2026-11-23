@@ -570,6 +570,50 @@ const PizzaKitchen = () => {
   )
 }
 
+const ORDER_KEY = 'hammad-foods-last-order'
+const TIMER_KEY = 'hammad-foods-preparation-expiry'
+const PREPARATION_TIME = 30 * 60 * 1000
+
+const getOrderId = (order) => {
+  return order?.orderNumber || order?._id || order?.id || null
+}
+
+const getSavedExpiry = (order) => {
+  if (!order) return null
+
+  const orderId = getOrderId(order)
+
+  try {
+    const savedTimer = localStorage.getItem(TIMER_KEY)
+
+    if (savedTimer) {
+      const parsedTimer = JSON.parse(savedTimer)
+
+      if (
+        parsedTimer.orderId === orderId &&
+        Number.isFinite(parsedTimer.expiresAt)
+      ) {
+        return parsedTimer.expiresAt
+      }
+    }
+
+    const expiresAt = Date.now() + PREPARATION_TIME
+
+    localStorage.setItem(
+      TIMER_KEY,
+      JSON.stringify({
+        orderId,
+        expiresAt
+      })
+    )
+
+    return expiresAt
+  } catch (error) {
+    console.error('Unable to load or save preparation timer:', error)
+    return Date.now() + PREPARATION_TIME
+  }
+}
+
 const OrderSuccess = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -580,7 +624,7 @@ const OrderSuccess = () => {
     }
 
     try {
-      const savedOrder = localStorage.getItem('hammad-foods-last-order')
+      const savedOrder = localStorage.getItem(ORDER_KEY)
       return savedOrder ? JSON.parse(savedOrder) : null
     } catch (error) {
       console.error('Unable to load saved order:', error)
@@ -588,46 +632,102 @@ const OrderSuccess = () => {
     }
   })
 
-  const [timeLeft, setTimeLeft] = useState(30 * 60)
+  const [expiresAt, setExpiresAt] = useState(() =>
+    getSavedExpiry(
+      location.state?.order ||
+      order
+    )
+  )
 
-  // Save newly placed order
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const expiry = getSavedExpiry(
+      location.state?.order ||
+      order
+    )
+
+    return expiry
+      ? Math.max(0, Math.floor((expiry - Date.now()) / 1000))
+      : 0
+  })
+
+  // Save newly placed order and initialize its timer only once
   useEffect(() => {
-    if (!location.state?.order) return
+    const newOrder = location.state?.order
 
-    const newOrder = location.state.order
+    if (!newOrder) return
+
+    setOrder(newOrder)
 
     try {
       localStorage.setItem(
-        'hammad-foods-last-order',
+        ORDER_KEY,
         JSON.stringify(newOrder)
       )
 
-      setOrder(newOrder)
+      const orderId = getOrderId(newOrder)
+      const savedTimer = localStorage.getItem(TIMER_KEY)
+
+      let expiry
+
+      if (savedTimer) {
+        const parsedTimer = JSON.parse(savedTimer)
+
+        if (
+          parsedTimer.orderId === orderId &&
+          Number.isFinite(parsedTimer.expiresAt)
+        ) {
+          expiry = parsedTimer.expiresAt
+        }
+      }
+
+      if (!expiry) {
+        expiry = Date.now() + PREPARATION_TIME
+
+        localStorage.setItem(
+          TIMER_KEY,
+          JSON.stringify({
+            orderId,
+            expiresAt: expiry
+          })
+        )
+      }
+
+      setExpiresAt(expiry)
+      setTimeLeft(
+        Math.max(0, Math.floor((expiry - Date.now()) / 1000))
+      )
     } catch (error) {
       console.error('Unable to save order:', error)
     }
   }, [location.state])
 
-  // Countdown
+  // Countdown based on the saved expiry timestamp
   useEffect(() => {
-    if (!order) return
+    if (!order || !expiresAt) return
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
+    const updateTimer = () => {
+      const remaining = Math.max(
+        0,
+        Math.floor((expiresAt - Date.now()) / 1000)
+      )
 
-        return prev - 1
-      })
-    }, 1000)
+      setTimeLeft(remaining)
+    }
+
+    updateTimer()
+
+    const timer = setInterval(updateTimer, 1000)
 
     return () => clearInterval(timer)
-  }, [order])
+  }, [order, expiresAt])
 
-  const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0')
-  const seconds = String(timeLeft % 60).padStart(2, '0')
+  const minutes = String(
+    Math.floor(timeLeft / 60)
+  ).padStart(2, '0')
+
+  const seconds = String(
+    timeLeft % 60
+  ).padStart(2, '0')
 
   if (!order) {
     return (
