@@ -570,47 +570,71 @@ const PizzaKitchen = () => {
   )
 }
 
-const ORDER_KEY = 'hammad-foods-last-order'
-const TIMER_KEY = 'hammad-foods-preparation-expiry'
+// Multiple orders storage
+const ORDERS_KEY = 'hammad-foods-orders'
+const OLD_ORDER_KEY = 'hammad-foods-last-order'
+const OLD_TIMER_KEY = 'hammad-foods-preparation-expiry'
 const PREPARATION_TIME = 30 * 60 * 1000
 
 const getOrderId = (order) => {
   return order?.orderNumber || order?._id || order?.id || null
 }
 
-const getSavedExpiry = (order) => {
-  if (!order) return null
-
-  const orderId = getOrderId(order)
-
+const getInitialOrders = () => {
   try {
-    const savedTimer = localStorage.getItem(TIMER_KEY)
+    const savedOrders = localStorage.getItem(ORDERS_KEY)
 
-    if (savedTimer) {
-      const parsedTimer = JSON.parse(savedTimer)
+    if (savedOrders) {
+      const parsedOrders = JSON.parse(savedOrders)
 
-      if (
-        parsedTimer.orderId === orderId &&
-        Number.isFinite(parsedTimer.expiresAt)
-      ) {
-        return parsedTimer.expiresAt
+      if (Array.isArray(parsedOrders)) {
+        return parsedOrders
       }
     }
 
-    const expiresAt = Date.now() + PREPARATION_TIME
+    // Old single-order data migration
+    const oldOrderData = localStorage.getItem(OLD_ORDER_KEY)
 
-    localStorage.setItem(
-      TIMER_KEY,
-      JSON.stringify({
-        orderId,
-        expiresAt
-      })
-    )
+    if (oldOrderData) {
+      const oldOrder = JSON.parse(oldOrderData)
 
-    return expiresAt
+      if (oldOrder) {
+        let expiresAt = Date.now() + PREPARATION_TIME
+
+        const oldTimerData = localStorage.getItem(OLD_TIMER_KEY)
+
+        if (oldTimerData) {
+          const oldTimer = JSON.parse(oldTimerData)
+
+          if (
+            oldTimer.orderId === getOrderId(oldOrder) &&
+            Number.isFinite(oldTimer.expiresAt)
+          ) {
+            expiresAt = oldTimer.expiresAt
+          }
+        }
+
+        const migratedOrders = [
+          {
+            id: getOrderId(oldOrder) || `order-${Date.now()}`,
+            order: oldOrder,
+            expiresAt
+          }
+        ]
+
+        localStorage.setItem(
+          ORDERS_KEY,
+          JSON.stringify(migratedOrders)
+        )
+
+        return migratedOrders
+      }
+    }
+
+    return []
   } catch (error) {
-    console.error('Unable to load or save preparation timer:', error)
-    return Date.now() + PREPARATION_TIME
+    console.error('Unable to load saved orders:', error)
+    return []
   }
 }
 
@@ -618,118 +642,94 @@ const OrderSuccess = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [order, setOrder] = useState(() => {
-    if (location.state?.order) {
-      return location.state.order
-    }
+  const [orders, setOrders] = useState(getInitialOrders)
+  const [currentTime, setCurrentTime] = useState(Date.now())
 
-    try {
-      const savedOrder = localStorage.getItem(ORDER_KEY)
-      return savedOrder ? JSON.parse(savedOrder) : null
-    } catch (error) {
-      console.error('Unable to load saved order:', error)
-      return null
-    }
-  })
-
-  const [expiresAt, setExpiresAt] = useState(() =>
-    getSavedExpiry(
-      location.state?.order ||
-      order
-    )
-  )
-
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const expiry = getSavedExpiry(
-      location.state?.order ||
-      order
-    )
-
-    return expiry
-      ? Math.max(0, Math.floor((expiry - Date.now()) / 1000))
-      : 0
-  })
-
-  // Save newly placed order and initialize its timer only once
+  // Save new orders without overwriting previous orders
   useEffect(() => {
     const newOrder = location.state?.order
 
     if (!newOrder) return
 
-    setOrder(newOrder)
+    const newOrderId =
+      getOrderId(newOrder) || `order-${Date.now()}`
 
-    try {
-      localStorage.setItem(
-        ORDER_KEY,
-        JSON.stringify(newOrder)
+    setOrders((previousOrders) => {
+      const alreadyExists = previousOrders.some(
+        (item) =>
+          item.id === newOrderId ||
+          getOrderId(item.order) === getOrderId(newOrder)
       )
 
-      const orderId = getOrderId(newOrder)
-      const savedTimer = localStorage.getItem(TIMER_KEY)
-
-      let expiry
-
-      if (savedTimer) {
-        const parsedTimer = JSON.parse(savedTimer)
-
-        if (
-          parsedTimer.orderId === orderId &&
-          Number.isFinite(parsedTimer.expiresAt)
-        ) {
-          expiry = parsedTimer.expiresAt
-        }
+      if (alreadyExists) {
+        return previousOrders
       }
 
-      if (!expiry) {
-        expiry = Date.now() + PREPARATION_TIME
+      const updatedOrders = [
+        {
+          id: newOrderId,
+          order: newOrder,
+          expiresAt: Date.now() + PREPARATION_TIME
+        },
+        ...previousOrders
+      ]
 
+      try {
         localStorage.setItem(
-          TIMER_KEY,
-          JSON.stringify({
-            orderId,
-            expiresAt: expiry
-          })
+          ORDERS_KEY,
+          JSON.stringify(updatedOrders)
         )
+      } catch (error) {
+        console.error('Unable to save new order:', error)
       }
 
-      setExpiresAt(expiry)
-      setTimeLeft(
-        Math.max(0, Math.floor((expiry - Date.now()) / 1000))
-      )
-    } catch (error) {
-      console.error('Unable to save order:', error)
-    }
+      return updatedOrders
+    })
   }, [location.state])
 
-  // Countdown based on the saved expiry timestamp
+  // Keep all orders saved
   useEffect(() => {
-    if (!order || !expiresAt) return
-
-    const updateTimer = () => {
-      const remaining = Math.max(
-        0,
-        Math.floor((expiresAt - Date.now()) / 1000)
+    try {
+      localStorage.setItem(
+        ORDERS_KEY,
+        JSON.stringify(orders)
       )
-
-      setTimeLeft(remaining)
+    } catch (error) {
+      console.error('Unable to update saved orders:', error)
     }
+  }, [orders])
 
-    updateTimer()
-
-    const timer = setInterval(updateTimer, 1000)
+  // Update all countdowns every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
 
     return () => clearInterval(timer)
-  }, [order, expiresAt])
+  }, [])
 
-  const minutes = String(
-    Math.floor(timeLeft / 60)
-  ).padStart(2, '0')
+  const getRemainingTime = (expiresAt) => {
+    return Math.max(
+      0,
+      Math.floor((expiresAt - currentTime) / 1000)
+    )
+  }
 
-  const seconds = String(
-    timeLeft % 60
-  ).padStart(2, '0')
+  const formatTime = (expiresAt) => {
+    const timeLeft = getRemainingTime(expiresAt)
 
-  if (!order) {
+    const minutes = String(
+      Math.floor(timeLeft / 60)
+    ).padStart(2, '0')
+
+    const seconds = String(
+      timeLeft % 60
+    ).padStart(2, '0')
+
+    return { minutes, seconds, timeLeft }
+  }
+
+  if (orders.length === 0) {
     return (
       <div className="flex min-h-[65vh] flex-col items-center justify-center px-4 text-center font-[Arial]">
         <h2 className="text-2xl font-bold text-gray-900">
@@ -776,88 +776,149 @@ const OrderSuccess = () => {
           <PizzaKitchen />
         </div>
 
-        {/* Timer */}
-        <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-5">
-          <p className="text-sm font-bold uppercase tracking-wider text-gray-700">
-            Estimated Preparation Time
-          </p>
+        {/* All Orders */}
+        <div className="mt-8 text-left">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">
+              Your Orders
+            </h2>
 
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <div className="min-w-20 rounded-xl bg-white px-4 py-3 shadow-sm">
-              <p className="text-4xl font-extrabold tabular-nums text-red-600">
-                {minutes}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-gray-500">
-                MINUTES
-              </p>
-            </div>
-
-            <span className="text-3xl font-bold text-red-600">:</span>
-
-            <div className="min-w-20 rounded-xl bg-white px-4 py-3 shadow-sm">
-              <p className="text-4xl font-extrabold tabular-nums text-red-600">
-                {seconds}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-gray-500">
-                SECONDS
-              </p>
-            </div>
+            <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-bold text-red-600">
+              {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
+            </span>
           </div>
 
-          <p className="mt-4 text-sm font-medium text-gray-600">
-            {timeLeft > 0
-              ? 'Your delicious pizza is getting ready!'
-              : 'Your estimated preparation time is over!'}
-          </p>
-        </div>
+          <div className="space-y-6">
+            {orders.map((item, index) => {
+              const order = item.order
+              const timer = formatTime(item.expiresAt)
 
-        {/* Order Details */}
-        <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5 text-left">
-          <div className="flex items-center gap-2 text-gray-900">
-            <FaClipboardList className="text-red-600" />
-            <span className="font-bold">Order Details</span>
-          </div>
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-gray-200 bg-white p-5"
+                >
+                  {/* Order Heading */}
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-4">
+                    <div className="flex items-center gap-2 text-gray-900">
+                      <FaClipboardList className="text-red-600" />
 
-          <div className="mt-5 space-y-4 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500">Order Number</span>
-              <span className="break-all text-right font-bold text-gray-900">
-                {order.orderNumber}
-              </span>
-            </div>
+                      <span className="font-bold">
+                        Order #{index + 1}
+                      </span>
+                    </div>
 
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500">Customer</span>
-              <span className="font-semibold text-gray-900">
-                {order.customer?.name}
-              </span>
-            </div>
+                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                      Confirmed
+                    </span>
+                  </div>
 
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500">Payment Method</span>
-              <span className="font-semibold text-gray-900">
-                Cash on Delivery
-              </span>
-            </div>
+                  {/* Timer */}
+                  <div className="mt-5 rounded-xl border border-red-100 bg-red-50 p-5 text-center">
+                    <p className="text-sm font-bold uppercase tracking-wider text-gray-700">
+                      Estimated Preparation Time
+                    </p>
 
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500">Order Status</span>
-              <span className="font-semibold text-orange-600">
-                {order.orderStatus}
-              </span>
-            </div>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <div className="min-w-20 rounded-xl bg-white px-4 py-3 shadow-sm">
+                        <p className="text-4xl font-extrabold tabular-nums text-red-600">
+                          {timer.minutes}
+                        </p>
 
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between gap-3">
-                <span className="font-bold text-gray-900">
-                  Total Amount
-                </span>
+                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                          MINUTES
+                        </p>
+                      </div>
 
-                <span className="text-lg font-bold text-red-600">
-                  Rs. {Number(order.totalAmount).toLocaleString()}
-                </span>
-              </div>
-            </div>
+                      <span className="text-3xl font-bold text-red-600">
+                        :
+                      </span>
+
+                      <div className="min-w-20 rounded-xl bg-white px-4 py-3 shadow-sm">
+                        <p className="text-4xl font-extrabold tabular-nums text-red-600">
+                          {timer.seconds}
+                        </p>
+
+                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                          SECONDS
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm font-medium text-gray-600">
+                      {timer.timeLeft > 0
+                        ? 'Your delicious pizza is getting ready!'
+                        : 'Your estimated preparation time is over!'}
+                    </p>
+                  </div>
+
+                  {/* Order Details */}
+                  <div className="mt-5 rounded-xl bg-gray-50 p-5">
+                    <div className="flex items-center gap-2 text-gray-900">
+                      <FaClipboardList className="text-red-600" />
+
+                      <span className="font-bold">
+                        Order Details
+                      </span>
+                    </div>
+
+                    <div className="mt-5 space-y-4 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          Order Number
+                        </span>
+
+                        <span className="break-all text-right font-bold text-gray-900">
+                          {order.orderNumber || getOrderId(order) || 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          Customer
+                        </span>
+
+                        <span className="text-right font-semibold text-gray-900">
+                          {order.customer?.name || 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          Payment Method
+                        </span>
+
+                        <span className="font-semibold text-gray-900">
+                          Cash on Delivery
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          Order Status
+                        </span>
+
+                        <span className="font-semibold text-orange-600">
+                          {order.orderStatus || 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-4">
+                        <div className="flex justify-between gap-3">
+                          <span className="font-bold text-gray-900">
+                            Total Amount
+                          </span>
+
+                          <span className="text-lg font-bold text-red-600">
+                            Rs. {Number(order.totalAmount || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
