@@ -49,6 +49,13 @@ const orderSchema = new mongoose.Schema(
       required: true
     },
 
+    // Logged-in user ki ID
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+
     customer: {
       name: {
         type: String,

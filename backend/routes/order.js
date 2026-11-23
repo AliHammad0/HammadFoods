@@ -17,7 +17,7 @@ import {
 const orderRoutes = express.Router()
 
 // Customer: Place Order
-orderRoutes.post('/', createOrder)
+orderRoutes.post('/', protect, createOrder)
 
 // Customer: View Own Orders
 orderRoutes.get('/my-orders', protect, getMyOrders)

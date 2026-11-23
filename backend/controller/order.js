@@ -6,6 +6,34 @@ import Product from '../model/product.js'
 import User from '../model/users.js'
 import * as config from '../config/config.js'
 
+// GET LOGGED-IN USER
+const getAuthenticatedUser = async (req) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Please login to continue')
+  }
+
+  if (!config.SECRET_KEY) {
+    throw new Error('SECRET_KEY is missing in config')
+  }
+
+  const token = authHeader.split(' ')[1]
+  const decoded = jwt.verify(token, config.SECRET_KEY)
+
+  if (!decoded.id || !mongoose.Types.ObjectId.isValid(decoded.id)) {
+    throw new Error('Invalid login session')
+  }
+
+  const user = await User.findById(decoded.id)
+
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  return user
+}
+
 // CREATE ORDER
 export const createOrder = async (req, res) => {
   const updatedProducts = []
@@ -37,6 +65,15 @@ export const createOrder = async (req, res) => {
         ok: false,
         message: 'Please provide customer details and order items'
       })
+    }
+
+    // Login token available ho to user identify karo
+    let loggedInUser = null
+
+    const authHeader = req.headers.authorization
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      loggedInUser = await getAuthenticatedUser(req)
     }
 
     const productQuantities = new Map()
@@ -119,12 +156,17 @@ export const createOrder = async (req, res) => {
       orderNumber: `HF-${Date.now()}-${Math.floor(
         1000 + Math.random() * 9000
       )}`,
+
+      // Logged-in user ki ID save hogi
+      user: loggedInUser?._id || null,
+
       customer: {
         name: customerName,
-        email: customerEmail || '',
+        email: customerEmail || loggedInUser?.email || '',
         phone: customerPhone,
         address: customerAddress
       },
+
       items: orderItems,
       subtotal,
       deliveryCharges,
@@ -167,6 +209,7 @@ export const createOrder = async (req, res) => {
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
+      .populate('user', 'name email')
       .populate('items.product', 'name image price')
       .sort({ createdAt: -1 })
 
@@ -187,34 +230,20 @@ export const getAllOrders = async (req, res) => {
 // GET MY ORDERS
 export const getMyOrders = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        ok: false,
-        message: 'Please login to view your orders'
-      })
-    }
-
-    if (!config.SECRET_KEY) {
-      throw new Error('SECRET_KEY is missing in config')
-    }
-
-    const token = authHeader.split(' ')[1]
-
-    const decoded = jwt.verify(token, config.SECRET_KEY)
-
-    const user = await User.findById(decoded.id)
-
-    if (!user) {
-      return res.status(404).json({
-        ok: false,
-        message: 'User not found'
-      })
-    }
+    const user = await getAuthenticatedUser(req)
 
     const orders = await Order.find({
-      'customer.email': user.email
+      $or: [
+        { user: user._id },
+        {
+          user: null,
+          'customer.email': user.email
+        },
+        {
+          user: { $exists: false },
+          'customer.email': user.email
+        }
+      ]
     })
       .populate('items.product', 'name image price')
       .sort({ createdAt: -1 })
@@ -227,11 +256,11 @@ export const getMyOrders = async (req, res) => {
     })
 
   } catch (error) {
-    console.error('GET MY ORDERS ERROR:', error)
+    console.error('GET MY ORDERS ERROR:', error.message)
 
     return res.status(401).json({
       ok: false,
-      message: 'Invalid or expired login session'
+      message: error.message || 'Invalid or expired login session'
     })
   }
 }
@@ -241,7 +270,9 @@ export const getSingleOrder = async (req, res) => {
   try {
     const order = await Order.findOne({
       orderNumber: req.params.orderNumber
-    }).populate('items.product', 'name image price')
+    })
+      .populate('user', 'name email')
+      .populate('items.product', 'name image price')
 
     if (!order) {
       return res.status(404).json({

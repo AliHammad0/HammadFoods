@@ -60,8 +60,20 @@ const Checkout = () => {
       return
     }
 
-    if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+    if (
+      !formData.name.trim() ||
+      !formData.phone.trim() ||
+      !formData.address.trim()
+    ) {
       setError('Please fill in all required fields.')
+      return
+    }
+
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      setError('Please login before placing your order.')
+      navigate('/login')
       return
     }
 
@@ -84,7 +96,8 @@ const Checkout = () => {
       const response = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(orderData)
       })
@@ -96,7 +109,9 @@ const Checkout = () => {
       }
 
       if (!data.order) {
-        throw new Error('Order response was incomplete. Please contact support.')
+        throw new Error(
+          'Order response was incomplete. Please contact support.'
+        )
       }
 
       dispatch(clearCart())
@@ -143,7 +158,6 @@ const Checkout = () => {
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
       <div className="mx-auto max-w-6xl">
-
         <div className="mb-10">
           <p className="text-sm font-semibold uppercase tracking-[3px] text-[#e96824]">
             Hammad Foods
@@ -163,14 +177,12 @@ const Checkout = () => {
           className="grid grid-cols-1 gap-8 lg:grid-cols-5"
         >
           <div className="space-y-6 lg:col-span-3">
-
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="mb-6 text-xl font-bold text-gray-900">
                 Delivery Information
               </h2>
 
               <div className="space-y-5">
-
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Full Name *
@@ -191,7 +203,6 @@ const Checkout = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-gray-700">
                       Phone Number *
@@ -224,7 +235,6 @@ const Checkout = () => {
                       className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                     />
                   </div>
-
                 </div>
 
                 <div>
@@ -257,7 +267,6 @@ const Checkout = () => {
                     className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-[#e96824] focus:ring-2 focus:ring-orange-100"
                   />
                 </div>
-
               </div>
             </div>
 
@@ -284,18 +293,15 @@ const Checkout = () => {
                 <div className="ml-auto h-5 w-5 rounded-full border-[6px] border-[#e96824] bg-white" />
               </div>
             </div>
-
           </div>
 
           <div className="lg:col-span-2">
             <div className="sticky top-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-
               <h2 className="mb-6 text-xl font-bold text-gray-900">
                 Order Summary
               </h2>
 
               <div className="max-h-72 space-y-4 overflow-y-auto">
-
                 {cartItems.map((item, index) => {
                   const price =
                     Number(item.discountPrice) > 0 &&
@@ -333,7 +339,6 @@ const Checkout = () => {
                     </div>
                   )
                 })}
-
               </div>
 
               <div className="my-6 border-t border-gray-200" />
@@ -392,10 +397,8 @@ const Checkout = () => {
               <p className="mt-4 text-center text-xs text-gray-500">
                 Your order will be placed with Cash on Delivery.
               </p>
-
             </div>
           </div>
-
         </form>
       </div>
     </div>
