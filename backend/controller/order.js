@@ -67,7 +67,6 @@ export const createOrder = async (req, res) => {
       })
     }
 
-    // Login token available ho to user identify karo
     let loggedInUser = null
 
     const authHeader = req.headers.authorization
@@ -157,7 +156,6 @@ export const createOrder = async (req, res) => {
         1000 + Math.random() * 9000
       )}`,
 
-      // Logged-in user ki ID save hogi
       user: loggedInUser?._id || null,
 
       customer: {
@@ -198,6 +196,24 @@ export const createOrder = async (req, res) => {
       }
     }
 
+    return res.status(500).json({
+      ok: false,
+      message: error.message
+    })
+  }
+}
+
+// GET TOTAL ORDERS COUNT FROM DATABASE
+export const getOrderCount = async (req, res) => {
+  try {
+    const total = await Order.countDocuments()
+
+    return res.status(200).json({
+      ok: true,
+      total
+    })
+
+  } catch (error) {
     return res.status(500).json({
       ok: false,
       message: error.message

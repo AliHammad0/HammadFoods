@@ -6,6 +6,7 @@ import {
   getAllOrders,
   getMyOrders,
   getSingleOrder,
+  getOrderCount,
   updateOrderStatus
 } from '../controller/order.js'
 
@@ -21,6 +22,9 @@ orderRoutes.post('/', protect, createOrder)
 
 // Customer: View Own Orders
 orderRoutes.get('/my-orders', protect, getMyOrders)
+
+// Public: Get Total Orders Count
+orderRoutes.get('/count', getOrderCount)
 
 // Admin: View All Orders
 orderRoutes.get('/', protect, adminOnly, getAllOrders)

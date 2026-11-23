@@ -4,6 +4,20 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaCheckCircle, FaClipboardList } from 'react-icons/fa'
 import * as THREE from 'three'
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://hammadfoods-backend.vercel.app/api/v1'
+).replace(/\/+$/, '')
+
+const ORDERS_KEY = 'hammad-foods-orders'
+const OLD_ORDER_KEY = 'hammad-foods-last-order'
+const OLD_TIMER_KEY = 'hammad-foods-preparation-expiry'
+const PREPARATION_TIME = 30 * 60 * 1000
+
+const getOrderId = (order) => {
+  return order?.orderNumber || order?._id || order?.id || null
+}
+
 const PizzaKitchen = () => {
   const mountRef = useRef(null)
 
@@ -43,7 +57,6 @@ const PizzaKitchen = () => {
 
     container.appendChild(renderer.domElement)
 
-    // Materials
     const material = (color, roughness = 0.75, metalness = 0) =>
       new THREE.MeshStandardMaterial({
         color,
@@ -65,7 +78,6 @@ const PizzaKitchen = () => {
     const cheese = material('#f3ce70')
     const ovenMat = material('#413b37')
 
-    // Helpers
     const box = (parent, size, mat, position) => {
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(...size),
@@ -114,7 +126,6 @@ const PizzaKitchen = () => {
       return mesh
     }
 
-    // Lighting
     scene.add(new THREE.HemisphereLight('#fff0dc', '#39302a', 2))
 
     const mainLight = new THREE.DirectionalLight('#fff1db', 3)
@@ -131,17 +142,12 @@ const PizzaKitchen = () => {
     fillLight.position.set(-4, 4, -3)
     scene.add(fillLight)
 
-    // Kitchen floor
     box(scene, [18, 0.2, 15], darkWood, [0, -0.15, 0])
-
-    // Back wall
     box(scene, [15, 7, 0.2], material('#51433a'), [0, 3.3, -3.8])
 
-    // Wall shelves
     box(scene, [5, 0.12, 0.55], wood, [-1.7, 3.6, -3.35])
     box(scene, [5, 0.12, 0.55], wood, [-1.7, 2.7, -3.35])
 
-    // Shelves bottles
     for (let i = 0; i < 5; i++) {
       cylinder(
         scene,
@@ -153,14 +159,10 @@ const PizzaKitchen = () => {
       )
     }
 
-    // Kitchen counter
     box(scene, [6, 0.22, 1.6], wood, [0, 1, 0.2])
     box(scene, [6, 0.9, 1.5], darkWood, [0, 0.43, 0.2])
-
-    // Counter front detail
     box(scene, [5.9, 0.06, 0.04], material('#a47750'), [0, 0.75, 0.97])
 
-    // Pizza preparation area
     const pizza = new THREE.Group()
     pizza.position.set(0.1, 1.13, 0.1)
     scene.add(pizza)
@@ -198,7 +200,6 @@ const PizzaKitchen = () => {
     cheeseLayer.position.y = 0.08
     pizza.add(cheeseLayer)
 
-    // Pizza toppings
     const toppings = new THREE.Group()
     toppings.position.y = 0.105
     pizza.add(toppings)
@@ -223,7 +224,6 @@ const PizzaKitchen = () => {
 
     toppings.visible = false
 
-    // Ingredient bowls
     const ingredients = [
       { x: -2.05, color: red, name: 'Tomatoes' },
       { x: -1.25, color: green, name: 'Vegetables' },
@@ -256,18 +256,15 @@ const PizzaKitchen = () => {
       }
     })
 
-    // Chef character
     const chef = new THREE.Group()
     chef.position.set(-2.35, 0, 0.4)
     scene.add(chef)
 
-    // Legs
     for (const x of [-0.19, 0.19]) {
       cylinder(chef, 0.13, 0.15, 0.82, black, [x, 0.48, 0])
       sphere(chef, 0.16, black, [x, 0.08, 0.1])
     }
 
-    // Body / chef jacket
     const torso = new THREE.Mesh(
       new THREE.CylinderGeometry(0.37, 0.43, 0.95, 32),
       white
@@ -276,15 +273,11 @@ const PizzaKitchen = () => {
     torso.castShadow = true
     chef.add(torso)
 
-    // Jacket buttons
     for (let i = 0; i < 3; i++) {
       sphere(chef, 0.025, steel, [0.02, 1.65 - i * 0.19, 0.365])
     }
 
-    // Apron
     box(chef, [0.58, 0.7, 0.09], apronMat, [0, 1.18, 0.38])
-
-    // Neck and head
     cylinder(chef, 0.13, 0.14, 0.22, skin, [0, 1.96, 0])
 
     const head = new THREE.Group()
@@ -292,21 +285,15 @@ const PizzaKitchen = () => {
     chef.add(head)
 
     sphere(head, 0.32, skin, [0, 0, 0])
-
-    // Ears
     sphere(head, 0.075, skin, [-0.31, 0, 0])
     sphere(head, 0.075, skin, [0.31, 0, 0])
 
-    // Eyes
     const eyeMat = material('#30241e')
 
     sphere(head, 0.035, eyeMat, [-0.11, 0.06, 0.29])
     sphere(head, 0.035, eyeMat, [0.11, 0.06, 0.29])
-
-    // Nose
     sphere(head, 0.055, skin, [0, -0.035, 0.32])
 
-    // Mouth
     const mouth = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.025, 0.025),
       material('#683e34')
@@ -314,16 +301,13 @@ const PizzaKitchen = () => {
     mouth.position.set(0, -0.15, 0.3)
     head.add(mouth)
 
-    // Chef moustache
     sphere(head, 0.065, black, [-0.065, -0.11, 0.31])
     sphere(head, 0.065, black, [0.065, -0.11, 0.31])
 
-    // White chef hat
     cylinder(chef, 0.31, 0.31, 0.1, white, [0, 2.56, 0])
     sphere(chef, 0.27, white, [0, 2.78, 0])
     sphere(chef, 0.21, white, [0, 2.92, 0])
 
-    // Animated arms
     const arms = []
 
     for (const side of [-1, 1]) {
@@ -331,42 +315,25 @@ const PizzaKitchen = () => {
       shoulder.position.set(side * 0.37, 1.76, 0)
       chef.add(shoulder)
 
-      cylinder(
-        shoulder,
-        0.13,
-        0.15,
-        0.47,
-        white,
-        [0, -0.23, 0]
-      )
+      cylinder(shoulder, 0.13, 0.15, 0.47, white, [0, -0.23, 0])
 
       const elbow = new THREE.Group()
       elbow.position.set(0, -0.45, 0)
       shoulder.add(elbow)
 
-      cylinder(
-        elbow,
-        0.095,
-        0.12,
-        0.4,
-        white,
-        [0, -0.2, 0]
-      )
-
+      cylinder(elbow, 0.095, 0.12, 0.4, white, [0, -0.2, 0])
       sphere(elbow, 0.11, skin, [0, -0.42, 0.02])
       sphere(elbow, 0.095, skin, [0, -0.44, 0.03])
 
       arms.push({ shoulder, elbow, side })
     }
 
-    // Oven
     const oven = new THREE.Group()
     oven.position.set(2.7, 0, -0.2)
     scene.add(oven)
 
     box(oven, [1.7, 1.8, 1.5], ovenMat, [0, 0.95, 0])
 
-    // Oven arch
     const arch = new THREE.Mesh(
       new THREE.TorusGeometry(0.55, 0.13, 20, 48, Math.PI),
       material('#9b8170')
@@ -374,7 +341,6 @@ const PizzaKitchen = () => {
     arch.position.set(0, 1.15, 0.77)
     oven.add(arch)
 
-    // Oven opening
     box(
       oven,
       [1.05, 0.9, 0.06],
@@ -382,7 +348,6 @@ const PizzaKitchen = () => {
       [0, 1.05, 0.77]
     )
 
-    // Fire
     const fireGroup = new THREE.Group()
     fireGroup.position.set(0, 0.9, 0.84)
     oven.add(fireGroup)
@@ -406,10 +371,8 @@ const PizzaKitchen = () => {
       fireGroup.add(flame)
     }
 
-    // Oven stone
     box(oven, [1.4, 0.12, 1.2], material('#b9a18b'), [0, 0.18, 0.05])
 
-    // Wood pizza peel
     const peel = new THREE.Group()
     peel.position.set(1.5, 1.13, 0.3)
     scene.add(peel)
@@ -417,12 +380,10 @@ const PizzaKitchen = () => {
     box(peel, [0.65, 0.035, 0.7], wood, [0, 0, 0])
     cylinder(peel, 0.045, 0.045, 1.05, wood, [0, 0, 0.75])
 
-    // Decorative kitchen lights
     const ceilingLight = new THREE.PointLight('#ffd8a0', 3, 10)
     ceilingLight.position.set(0, 5, 1)
     scene.add(ceilingLight)
 
-    // Animation
     const clock = new THREE.Clock()
 
     const animate = () => {
@@ -483,7 +444,6 @@ const PizzaKitchen = () => {
         head.rotation.x = 0.05
       }
 
-      // Fire flickering
       fireGroup.children.forEach((flame, i) => {
         flame.scale.y = 0.8 + Math.sin(elapsed * 8 + i) * 0.3
         flame.rotation.z = Math.sin(elapsed * 4 + i) * 0.12
@@ -570,29 +530,16 @@ const PizzaKitchen = () => {
   )
 }
 
-// Multiple orders storage
-const ORDERS_KEY = 'hammad-foods-orders'
-const OLD_ORDER_KEY = 'hammad-foods-last-order'
-const OLD_TIMER_KEY = 'hammad-foods-preparation-expiry'
-const PREPARATION_TIME = 30 * 60 * 1000
-
-const getOrderId = (order) => {
-  return order?.orderNumber || order?._id || order?.id || null
-}
-
-const getInitialOrders = () => {
+const readSavedOrders = () => {
   try {
-    const savedOrders = localStorage.getItem(ORDERS_KEY)
+    const saved = localStorage.getItem(ORDERS_KEY)
 
-    if (savedOrders) {
-      const parsedOrders = JSON.parse(savedOrders)
-
-      if (Array.isArray(parsedOrders)) {
-        return parsedOrders
-      }
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) return parsed
     }
 
-    // Old single-order data migration
+    // Purane saved order ko bhi database se verify kiya jayega
     const oldOrderData = localStorage.getItem(OLD_ORDER_KEY)
 
     if (oldOrderData) {
@@ -614,92 +561,177 @@ const getInitialOrders = () => {
           }
         }
 
-        const migratedOrders = [
-          {
-            id: getOrderId(oldOrder) || `order-${Date.now()}`,
-            order: oldOrder,
-            expiresAt
-          }
-        ]
-
-        localStorage.setItem(
-          ORDERS_KEY,
-          JSON.stringify(migratedOrders)
-        )
-
-        return migratedOrders
+        return [{
+          id: getOrderId(oldOrder),
+          order: oldOrder,
+          expiresAt
+        }]
       }
     }
 
     return []
   } catch (error) {
-    console.error('Unable to load saved orders:', error)
+    console.error('Unable to read saved orders:', error)
     return []
   }
+}
+
+const clearSavedOrders = () => {
+  localStorage.removeItem(ORDERS_KEY)
+  localStorage.removeItem(OLD_ORDER_KEY)
+  localStorage.removeItem(OLD_TIMER_KEY)
 }
 
 const OrderSuccess = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [orders, setOrders] = useState(getInitialOrders)
+  const [orders, setOrders] = useState([])
+  const [databaseOrderCount, setDatabaseOrderCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(Date.now())
 
-  // Save new orders without overwriting previous orders
+  // Fetch count from MongoDB and verify saved orders
   useEffect(() => {
-    const newOrder = location.state?.order
+    let cancelled = false
 
-    if (!newOrder) return
-
-    const newOrderId =
-      getOrderId(newOrder) || `order-${Date.now()}`
-
-    setOrders((previousOrders) => {
-      const alreadyExists = previousOrders.some(
-        (item) =>
-          item.id === newOrderId ||
-          getOrderId(item.order) === getOrderId(newOrder)
-      )
-
-      if (alreadyExists) {
-        return previousOrders
-      }
-
-      const updatedOrders = [
-        {
-          id: newOrderId,
-          order: newOrder,
-          expiresAt: Date.now() + PREPARATION_TIME
-        },
-        ...previousOrders
-      ]
+    const fetchDatabaseOrders = async () => {
+      setLoading(true)
+      setError('')
 
       try {
+        const countResponse = await fetch(`${API_BASE_URL}/orders/count`)
+        const countData = await countResponse.json()
+
+        if (!countResponse.ok || countData.ok !== true) {
+          throw new Error(countData.message || 'Unable to fetch order count')
+        }
+
+        const total = Number(countData.total) || 0
+
+        if (cancelled) return
+
+        setDatabaseOrderCount(total)
+
+        // Database mein zero orders hain to localStorage bhi clear
+        if (total === 0) {
+          setOrders([])
+          clearSavedOrders()
+          return
+        }
+
+        const savedOrders = readSavedOrders()
+        const currentOrder = location.state?.order
+
+        let candidateOrders = [...savedOrders]
+
+        // Current successful order ko list mein include karo
+        if (currentOrder) {
+          const currentId = getOrderId(currentOrder)
+
+          const alreadyExists = candidateOrders.some(
+            (item) =>
+              item.id === currentId ||
+              getOrderId(item.order) === currentId
+          )
+
+          if (!alreadyExists) {
+            candidateOrders.unshift({
+              id: currentId || `order-${Date.now()}`,
+              order: currentOrder,
+              expiresAt: Date.now() + PREPARATION_TIME
+            })
+          }
+        }
+
+        // Har saved order ko MongoDB se verify karo
+        const verifiedOrders = await Promise.all(
+          candidateOrders.map(async (item) => {
+            const orderNumber = item.order?.orderNumber
+
+            if (!orderNumber) return null
+
+            try {
+              const response = await fetch(
+                `${API_BASE_URL}/orders/${encodeURIComponent(orderNumber)}`
+              )
+
+              if (!response.ok) return null
+
+              const data = await response.json()
+
+              if (!data.ok || !data.order) return null
+
+              return {
+                ...item,
+                id: getOrderId(data.order),
+                order: data.order,
+                expiresAt: Number(item.expiresAt) ||
+                  Date.now() + PREPARATION_TIME
+              }
+            } catch (verificationError) {
+              console.error(
+                'Order verification failed:',
+                verificationError.message
+              )
+              return null
+            }
+          })
+        )
+
+        if (cancelled) return
+
+        const validOrders = verifiedOrders.filter(Boolean)
+
+        setOrders(validOrders)
+
         localStorage.setItem(
           ORDERS_KEY,
-          JSON.stringify(updatedOrders)
+          JSON.stringify(validOrders)
         )
-      } catch (error) {
-        console.error('Unable to save new order:', error)
-      }
 
-      return updatedOrders
-    })
+        // Purane storage keys ki zaroorat nahi
+        localStorage.removeItem(OLD_ORDER_KEY)
+        localStorage.removeItem(OLD_TIMER_KEY)
+
+      } catch (fetchError) {
+        console.error('Order fetch error:', fetchError.message)
+
+        if (!cancelled) {
+          setError(
+            'Unable to connect to the orders database. Please refresh the page.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchDatabaseOrders()
+
+    return () => {
+      cancelled = true
+    }
   }, [location.state])
 
-  // Keep all orders saved
+  // Save only database-verified orders
   useEffect(() => {
+    if (loading || error) return
+
     try {
       localStorage.setItem(
         ORDERS_KEY,
         JSON.stringify(orders)
       )
-    } catch (error) {
-      console.error('Unable to update saved orders:', error)
+    } catch (saveError) {
+      console.error('Unable to save orders:', saveError)
     }
-  }, [orders])
+  }, [orders, loading, error])
 
-  // Update all countdowns every second
+  // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now())
@@ -729,15 +761,57 @@ const OrderSuccess = () => {
     return { minutes, seconds, timeLeft }
   }
 
-  if (orders.length === 0) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[65vh] items-center justify-center px-4 font-[Arial]">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-red-100 border-t-red-600" />
+          <p className="mt-4 font-semibold text-gray-600">
+            Checking your orders...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
     return (
       <div className="flex min-h-[65vh] flex-col items-center justify-center px-4 text-center font-[Arial]">
         <h2 className="text-2xl font-bold text-gray-900">
-          Order Information Not Found
+          Orders Could Not Be Loaded
+        </h2>
+
+        <p className="mt-2 max-w-md text-gray-500">
+          {error}
+        </p>
+
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 rounded-lg bg-red-600 px-7 py-3 font-semibold text-white hover:bg-red-700"
+        >
+          Try Again
+        </button>
+      </div>
+    )
+  }
+
+  if (databaseOrderCount === 0 || orders.length === 0) {
+    return (
+      <div className="flex min-h-[65vh] flex-col items-center justify-center px-4 text-center font-[Arial]">
+        <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+          <FaClipboardList className="text-4xl text-gray-400" />
+        </div>
+
+        <h2 className="text-2xl font-bold text-gray-900">
+          No Orders Found
         </h2>
 
         <p className="mt-2 text-gray-500">
-          Please place an order to see your confirmation.
+          There are currently 0 orders in the database.
+        </p>
+
+        <p className="mt-3 rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-600">
+          {databaseOrderCount} Orders
         </p>
 
         <Link
@@ -754,7 +828,6 @@ const OrderSuccess = () => {
     <div className="min-h-[75vh] bg-gray-50 px-4 py-12 font-[Arial]">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm sm:p-10">
 
-        {/* Success */}
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-50">
           <FaCheckCircle className="text-5xl text-green-600" />
         </div>
@@ -771,20 +844,18 @@ const OrderSuccess = () => {
           Your order has been placed successfully. We will contact you soon.
         </p>
 
-        {/* 3D Kitchen */}
         <div className="mt-8 text-left">
           <PizzaKitchen />
         </div>
 
-        {/* All Orders */}
         <div className="mt-8 text-left">
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-gray-900">
               Your Orders
             </h2>
 
             <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-bold text-red-600">
-              {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
+              {databaseOrderCount} {databaseOrderCount === 1 ? 'Order' : 'Orders'}
             </span>
           </div>
 
@@ -798,7 +869,6 @@ const OrderSuccess = () => {
                   key={item.id}
                   className="rounded-xl border border-gray-200 bg-white p-5"
                 >
-                  {/* Order Heading */}
                   <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-4">
                     <div className="flex items-center gap-2 text-gray-900">
                       <FaClipboardList className="text-red-600" />
@@ -809,11 +879,10 @@ const OrderSuccess = () => {
                     </div>
 
                     <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                      Confirmed
+                      {order.orderStatus || 'Pending'}
                     </span>
                   </div>
 
-                  {/* Timer */}
                   <div className="mt-5 rounded-xl border border-red-100 bg-red-50 p-5 text-center">
                     <p className="text-sm font-bold uppercase tracking-wider text-gray-700">
                       Estimated Preparation Time
@@ -852,7 +921,6 @@ const OrderSuccess = () => {
                     </p>
                   </div>
 
-                  {/* Order Details */}
                   <div className="mt-5 rounded-xl bg-gray-50 p-5">
                     <div className="flex items-center gap-2 text-gray-900">
                       <FaClipboardList className="text-red-600" />
@@ -922,7 +990,6 @@ const OrderSuccess = () => {
           </div>
         </div>
 
-        {/* Continue Shopping */}
         <button
           onClick={() => navigate('/')}
           className="mt-8 w-full rounded-xl bg-red-600 px-6 py-4 font-bold text-white transition duration-300 hover:bg-red-700"
