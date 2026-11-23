@@ -14,12 +14,23 @@ const OLD_ORDER_KEY = 'hammad-foods-last-order'
 const OLD_TIMER_KEY = 'hammad-foods-preparation-expiry'
 const PREPARATION_TIME = 30 * 60 * 1000
 
-const getOrderId = (order) => {
-  return order?.orderNumber || order?._id || order?.id || null
-}
+const getOrderId = (order) =>
+  order?.orderNumber || order?._id || order?.id || null
+
+const kitchenStages = [
+  'Preparing fresh pizza dough',
+  'Kneading the dough by hand',
+  'Rolling the dough into shape',
+  'Chopping fresh vegetables',
+  'Spreading rich tomato sauce',
+  'Adding cheese and fresh toppings',
+  'Baking pizza in the wood-fired oven',
+  'Taking out your freshly baked pizza'
+]
 
 const PizzaKitchen = () => {
   const mountRef = useRef(null)
+  const [stage, setStage] = useState(0)
 
   useEffect(() => {
     const container = mountRef.current
@@ -29,8 +40,8 @@ const PizzaKitchen = () => {
     let disposed = false
 
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#211b18')
-    scene.fog = new THREE.Fog('#211b18', 10, 23)
+    scene.background = new THREE.Color('#211713')
+    scene.fog = new THREE.Fog('#211713', 12, 25)
 
     const camera = new THREE.PerspectiveCamera(
       38,
@@ -39,7 +50,7 @@ const PizzaKitchen = () => {
       100
     )
 
-    camera.position.set(0, 4.5, 9.5)
+    camera.position.set(0, 4.5, 10)
     camera.lookAt(0, 1.35, 0)
 
     const renderer = new THREE.WebGLRenderer({
@@ -53,7 +64,7 @@ const PizzaKitchen = () => {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.25
+    renderer.toneMappingExposure = 1.3
 
     container.appendChild(renderer.domElement)
 
@@ -64,19 +75,29 @@ const PizzaKitchen = () => {
         metalness
       })
 
-    const skin = material('#c58b68')
-    const white = material('#f0eee8')
-    const black = material('#292522')
-    const apronMat = material('#292e30')
-    const steel = material('#777e80', 0.35, 0.75)
-    const wood = material('#75432b')
-    const darkWood = material('#39251d')
-    const red = material('#c63824')
-    const yellow = material('#edb83d')
-    const green = material('#44834b')
-    const doughMat = material('#d5a36d')
-    const cheese = material('#f3ce70')
-    const ovenMat = material('#413b37')
+    const mats = {
+      skin: material('#c58b68'),
+      skinDark: material('#985f46'),
+      white: material('#f2eee7'),
+      black: material('#292522'),
+      apron: material('#303b3a'),
+      steel: material('#a5abad', 0.3, 0.8),
+      wood: material('#86502e'),
+      darkWood: material('#39241b'),
+      lightWood: material('#b17b4d'),
+      red: material('#c63824'),
+      tomato: material('#e64b32'),
+      yellow: material('#edb83d'),
+      green: material('#44834b'),
+      dough: material('#d5a36d'),
+      doughLight: material('#e8bd83'),
+      cheese: material('#f3ce70'),
+      oven: material('#413b37'),
+      wall: material('#554037'),
+      dark: material('#17100d'),
+      mushroom: material('#79533b'),
+      basil: material('#347542')
+    }
 
     const box = (parent, size, mat, position) => {
       const mesh = new THREE.Mesh(
@@ -90,9 +111,9 @@ const PizzaKitchen = () => {
       return mesh
     }
 
-    const sphere = (parent, size, mat, position) => {
+    const sphere = (parent, radius, mat, position) => {
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 24, 20),
+        new THREE.SphereGeometry(radius, 24, 18),
         mat
       )
       mesh.position.set(...position)
@@ -104,19 +125,15 @@ const PizzaKitchen = () => {
 
     const cylinder = (
       parent,
-      radiusTop,
-      radiusBottom,
+      top,
+      bottom,
       height,
       mat,
-      position
+      position,
+      segments = 24
     ) => {
       const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          radiusTop,
-          radiusBottom,
-          height,
-          24
-        ),
+        new THREE.CylinderGeometry(top, bottom, height, segments),
         mat
       )
       mesh.position.set(...position)
@@ -126,91 +143,191 @@ const PizzaKitchen = () => {
       return mesh
     }
 
-    scene.add(new THREE.HemisphereLight('#fff0dc', '#39302a', 2))
+    // LIGHTING
 
-    const mainLight = new THREE.DirectionalLight('#fff1db', 3)
+    scene.add(
+      new THREE.HemisphereLight('#fff0dc', '#39302a', 2)
+    )
+
+    const mainLight = new THREE.DirectionalLight('#fff1db', 3.5)
     mainLight.position.set(-3, 8, 5)
     mainLight.castShadow = true
-    mainLight.shadow.mapSize.set(1024, 1024)
+    mainLight.shadow.mapSize.set(2048, 2048)
     scene.add(mainLight)
 
-    const ovenLight = new THREE.PointLight('#ff741e', 12, 7)
-    ovenLight.position.set(3, 1.5, 0)
+    const ovenLight = new THREE.PointLight('#ff741e', 14, 8)
+    ovenLight.position.set(3, 1.5, 0.5)
     scene.add(ovenLight)
 
     const fillLight = new THREE.PointLight('#ffffff', 4, 12)
     fillLight.position.set(-4, 4, -3)
     scene.add(fillLight)
 
-    box(scene, [18, 0.2, 15], darkWood, [0, -0.15, 0])
-    box(scene, [15, 7, 0.2], material('#51433a'), [0, 3.3, -3.8])
+    const warmLight = new THREE.PointLight('#ffb45c', 3, 10)
+    warmLight.position.set(0, 5, 1)
+    scene.add(warmLight)
 
-    box(scene, [5, 0.12, 0.55], wood, [-1.7, 3.6, -3.35])
-    box(scene, [5, 0.12, 0.55], wood, [-1.7, 2.7, -3.35])
+    // FLOOR AND WALL
 
-    for (let i = 0; i < 5; i++) {
-      cylinder(
+    box(scene, [18, 0.2, 15], mats.darkWood, [0, -0.15, 0])
+    box(scene, [15, 7, 0.2], mats.wall, [0, 3.3, -3.8])
+
+    for (let i = 0; i < 8; i++) {
+      box(
         scene,
-        0.09,
-        0.09,
-        0.45,
-        i % 2 ? green : red,
-        [-3.5 + i * 0.8, 3.9, -3.2]
+        [0.035, 6.5, 0.04],
+        mats.darkWood,
+        [-6.5 + i * 1.85, 3.3, -3.65]
       )
     }
 
-    box(scene, [6, 0.22, 1.6], wood, [0, 1, 0.2])
-    box(scene, [6, 0.9, 1.5], darkWood, [0, 0.43, 0.2])
-    box(scene, [5.9, 0.06, 0.04], material('#a47750'), [0, 0.75, 0.97])
+    for (let i = 0; i < 5; i++) {
+      box(
+        scene,
+        [14, 0.025, 0.04],
+        mats.lightWood,
+        [0, 0.8 + i * 1.25, -3.65]
+      )
+    }
+
+    // WALL SHELVES
+
+    box(scene, [5.5, 0.14, 0.65], mats.wood, [-4.2, 3.7, -3.35])
+    box(scene, [5.5, 0.14, 0.65], mats.wood, [-4.2, 2.65, -3.35])
+    box(scene, [3.5, 0.14, 0.65], mats.wood, [4.8, 3.5, -3.35])
+
+    // Kitchen jars
+
+    const jarColors = [
+      mats.yellow,
+      mats.red,
+      mats.green,
+      mats.doughLight,
+      mats.mushroom
+    ]
+
+    for (let i = 0; i < 5; i++) {
+      const x = -6.3 + i * 0.85
+
+      cylinder(scene, 0.16, 0.17, 0.45, mats.steel, [x, 3.98, -3.25])
+      cylinder(scene, 0.17, 0.17, 0.025, mats.dark, [x, 4.22, -3.25])
+      sphere(scene, 0.1, jarColors[i], [x, 4.05, -3.25])
+    }
+
+    for (let i = 0; i < 4; i++) {
+      cylinder(
+        scene,
+        0.13,
+        0.13,
+        0.36,
+        i % 2 ? mats.green : mats.red,
+        [-6.1 + i * 1.1, 2.95, -3.25]
+      )
+    }
+
+    // Decorative kitchen lights
+
+    for (const x of [-4.5, 0, 4.5]) {
+      cylinder(scene, 0.025, 0.025, 0.6, mats.dark, [x, 5.8, -2.8])
+
+      const lamp = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 24, 16),
+        new THREE.MeshStandardMaterial({
+          color: '#ffd59b',
+          emissive: '#ff9b38',
+          emissiveIntensity: 1.5
+        })
+      )
+
+      lamp.position.set(x, 5.45, -2.8)
+      scene.add(lamp)
+
+      const light = new THREE.PointLight('#ffbd72', 2, 5)
+      light.position.set(x, 5.1, -2.5)
+      scene.add(light)
+    }
+
+    // WORKING TABLE
+
+    box(scene, [6.5, 0.22, 2], mats.wood, [0, 1, 0.3])
+    box(scene, [6.3, 0.85, 1.85], mats.darkWood, [0, 0.48, 0.3])
+    box(scene, [6.4, 0.055, 0.04], mats.lightWood, [0, 0.82, 1.25])
+
+    for (const x of [-2.8, 2.8]) {
+      for (const z of [-0.3, 0.9]) {
+        box(scene, [0.16, 1, 0.16], mats.darkWood, [x, 0.25, z])
+      }
+    }
+
+    // CUTTING BOARD
+
+    const board = box(
+      scene,
+      [1.35, 0.09, 0.85],
+      mats.lightWood,
+      [-1.8, 1.18, 0.55]
+    )
+
+    // PIZZA DOUGH
 
     const pizza = new THREE.Group()
-    pizza.position.set(0.1, 1.13, 0.1)
+    pizza.position.set(0.45, 1.2, 0.2)
     scene.add(pizza)
 
     const dough = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.78, 0.78, 0.09, 64),
-      doughMat
+      new THREE.CylinderGeometry(0.78, 0.78, 0.12, 64),
+      mats.dough
     )
     dough.scale.z = 0.78
     dough.castShadow = true
     pizza.add(dough)
 
     const crust = new THREE.Mesh(
-      new THREE.TorusGeometry(0.72, 0.075, 12, 64),
-      material('#bd8046')
+      new THREE.TorusGeometry(0.72, 0.085, 16, 64),
+      mats.doughLight
     )
     crust.rotation.x = Math.PI / 2
     crust.scale.y = 0.78
-    crust.position.y = 0.055
+    crust.position.y = 0.07
     pizza.add(crust)
 
     const sauce = new THREE.Mesh(
       new THREE.CylinderGeometry(0.66, 0.66, 0.025, 64),
-      red
+      mats.red
     )
     sauce.scale.z = 0.78
-    sauce.position.y = 0.06
+    sauce.position.y = 0.075
     pizza.add(sauce)
 
     const cheeseLayer = new THREE.Mesh(
       new THREE.CylinderGeometry(0.6, 0.6, 0.025, 64),
-      cheese
+      mats.cheese
     )
     cheeseLayer.scale.z = 0.78
-    cheeseLayer.position.y = 0.08
+    cheeseLayer.position.y = 0.095
     pizza.add(cheeseLayer)
 
+    // Pizza toppings
+
     const toppings = new THREE.Group()
-    toppings.position.y = 0.105
+    toppings.position.y = 0.115
     pizza.add(toppings)
 
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2
-      const radius = 0.42
+    const toppingMaterials = [
+      mats.tomato,
+      mats.green,
+      mats.mushroom,
+      mats.cheese,
+      mats.basil
+    ]
+
+    for (let i = 0; i < 22; i++) {
+      const angle = (i / 22) * Math.PI * 2
+      const radius = 0.22 + (i % 3) * 0.12
 
       const topping = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.075, 0.075, 0.035, 20),
-        i % 3 === 0 ? red : i % 3 === 1 ? green : material('#7d573e')
+        new THREE.CylinderGeometry(0.065, 0.07, 0.035, 16),
+        toppingMaterials[i % toppingMaterials.length]
       )
 
       topping.position.set(
@@ -224,89 +341,158 @@ const PizzaKitchen = () => {
 
     toppings.visible = false
 
-    const ingredients = [
-      { x: -2.05, color: red, name: 'Tomatoes' },
-      { x: -1.25, color: green, name: 'Vegetables' },
-      { x: -0.45, color: yellow, name: 'Cheese' },
-      { x: 0.45, color: material('#79533b'), name: 'Mushrooms' }
+    // SAUCE SPOON
+
+    const spoon = new THREE.Group()
+    spoon.position.set(0.1, 1.45, 0.65)
+    scene.add(spoon)
+
+    cylinder(spoon, 0.025, 0.025, 0.55, mats.steel, [0, 0, 0.2])
+    sphere(spoon, 0.12, mats.red, [0, 0.28, 0.2])
+
+    // ROLLING PIN
+
+    const rollingPin = new THREE.Group()
+    rollingPin.position.set(-1.9, 1.42, 0.6)
+    scene.add(rollingPin)
+
+    cylinder(
+      rollingPin,
+      0.09,
+      0.09,
+      0.8,
+      mats.lightWood,
+      [0, 0, 0],
+      32
+    )
+
+    for (const x of [-0.48, 0.48]) {
+      cylinder(rollingPin, 0.035, 0.035, 0.25, mats.darkWood, [x, 0, 0])
+    }
+
+    // KNIFE
+
+    const knife = new THREE.Group()
+    knife.position.set(-1.8, 1.45, 0.6)
+    scene.add(knife)
+
+    box(knife, [0.12, 0.045, 0.45], mats.steel, [0, 0, 0])
+    box(knife, [0.11, 0.07, 0.22], mats.darkWood, [0, 0, -0.32])
+
+    // INGREDIENT BOWLS
+
+    const ingredientItems = [
+      { x: -2.6, color: mats.tomato },
+      { x: -1.65, color: mats.green },
+      { x: -0.7, color: mats.cheese },
+      { x: 0.2, color: mats.mushroom },
+      { x: 1.1, color: mats.basil }
     ]
 
-    ingredients.forEach((item) => {
+    ingredientItems.forEach((item) => {
       const bowl = new THREE.Group()
-      bowl.position.set(item.x, 1.13, 0.55)
+      bowl.position.set(item.x, 1.15, 0.8)
       scene.add(bowl)
 
-      const bowlMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.17, 0.13, 32),
-        steel
-      )
-      bowl.add(bowlMesh)
+      cylinder(bowl, 0.25, 0.17, 0.14, mats.steel, [0, 0, 0], 32)
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         sphere(
           bowl,
           0.075,
           item.color,
           [
-            Math.sin(i * 1.6) * 0.13,
-            0.1,
+            Math.sin(i * 1.6) * 0.14,
+            0.11,
             Math.cos(i * 1.6) * 0.12
           ]
         )
       }
     })
 
+    // CHEF BODY
+
     const chef = new THREE.Group()
     chef.position.set(-2.35, 0, 0.4)
     scene.add(chef)
 
+    // Legs
+
     for (const x of [-0.19, 0.19]) {
-      cylinder(chef, 0.13, 0.15, 0.82, black, [x, 0.48, 0])
-      sphere(chef, 0.16, black, [x, 0.08, 0.1])
+      const leg = cylinder(
+        chef,
+        0.13,
+        0.15,
+        0.82,
+        mats.black,
+        [x, 0.48, 0]
+      )
+
+      leg.rotation.z = x * 0.12
+
+      sphere(chef, 0.16, mats.black, [x, 0.08, 0.1])
     }
+
+    // Body
 
     const torso = new THREE.Mesh(
       new THREE.CylinderGeometry(0.37, 0.43, 0.95, 32),
-      white
+      mats.white
     )
     torso.position.y = 1.38
     torso.castShadow = true
     chef.add(torso)
 
+    const apron = box(
+      chef,
+      [0.58, 0.7, 0.09],
+      mats.apron,
+      [0, 1.18, 0.38]
+    )
+
     for (let i = 0; i < 3; i++) {
-      sphere(chef, 0.025, steel, [0.02, 1.65 - i * 0.19, 0.365])
+      sphere(chef, 0.025, mats.steel, [0.02, 1.65 - i * 0.19, 0.365])
     }
 
-    box(chef, [0.58, 0.7, 0.09], apronMat, [0, 1.18, 0.38])
-    cylinder(chef, 0.13, 0.14, 0.22, skin, [0, 1.96, 0])
+    // Neck
+
+    cylinder(chef, 0.13, 0.14, 0.22, mats.skin, [0, 1.96, 0])
+
+    // HEAD
 
     const head = new THREE.Group()
     head.position.set(0, 2.24, 0)
     chef.add(head)
 
-    sphere(head, 0.32, skin, [0, 0, 0])
-    sphere(head, 0.075, skin, [-0.31, 0, 0])
-    sphere(head, 0.075, skin, [0.31, 0, 0])
+    sphere(head, 0.32, mats.skin, [0, 0, 0])
+    sphere(head, 0.075, mats.skin, [-0.31, 0, 0])
+    sphere(head, 0.075, mats.skin, [0.31, 0, 0])
 
     const eyeMat = material('#30241e')
 
     sphere(head, 0.035, eyeMat, [-0.11, 0.06, 0.29])
     sphere(head, 0.035, eyeMat, [0.11, 0.06, 0.29])
-    sphere(head, 0.055, skin, [0, -0.035, 0.32])
+    sphere(head, 0.055, mats.skin, [0, -0.035, 0.32])
 
-    const mouth = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.025, 0.025),
-      material('#683e34')
+    box(
+      head,
+      [0.1, 0.025, 0.025],
+      material('#683e34'),
+      [0, -0.15, 0.3]
     )
-    mouth.position.set(0, -0.15, 0.3)
-    head.add(mouth)
 
-    sphere(head, 0.065, black, [-0.065, -0.11, 0.31])
-    sphere(head, 0.065, black, [0.065, -0.11, 0.31])
+    sphere(head, 0.065, mats.black, [-0.065, -0.11, 0.31])
+    sphere(head, 0.065, mats.black, [0.065, -0.11, 0.31])
 
-    cylinder(chef, 0.31, 0.31, 0.1, white, [0, 2.56, 0])
-    sphere(chef, 0.27, white, [0, 2.78, 0])
-    sphere(chef, 0.21, white, [0, 2.92, 0])
+    // Chef hat
+
+    cylinder(chef, 0.31, 0.31, 0.1, mats.white, [0, 2.56, 0])
+    sphere(chef, 0.27, mats.white, [0, 2.78, 0])
+    sphere(chef, 0.21, mats.white, [0, 2.92, 0])
+    sphere(chef, 0.18, mats.white, [-0.17, 2.78, 0])
+    sphere(chef, 0.18, mats.white, [0.17, 2.78, 0])
+
+    // ARMS WITH SHOULDER AND ELBOW JOINTS
 
     const arms = []
 
@@ -315,24 +501,49 @@ const PizzaKitchen = () => {
       shoulder.position.set(side * 0.37, 1.76, 0)
       chef.add(shoulder)
 
-      cylinder(shoulder, 0.13, 0.15, 0.47, white, [0, -0.23, 0])
+      cylinder(
+        shoulder,
+        0.13,
+        0.15,
+        0.47,
+        mats.white,
+        [0, -0.23, 0]
+      )
 
       const elbow = new THREE.Group()
       elbow.position.set(0, -0.45, 0)
       shoulder.add(elbow)
 
-      cylinder(elbow, 0.095, 0.12, 0.4, white, [0, -0.2, 0])
-      sphere(elbow, 0.11, skin, [0, -0.42, 0.02])
-      sphere(elbow, 0.095, skin, [0, -0.44, 0.03])
+      cylinder(
+        elbow,
+        0.095,
+        0.12,
+        0.4,
+        mats.white,
+        [0, -0.2, 0]
+      )
 
-      arms.push({ shoulder, elbow, side })
+      const hand = sphere(
+        elbow,
+        0.11,
+        mats.skin,
+        [0, -0.42, 0.02]
+      )
+
+      sphere(elbow, 0.055, mats.skin, [0.06, -0.45, 0.08])
+
+      arms.push({ shoulder, elbow, hand, side })
     }
+
+    // OVEN
 
     const oven = new THREE.Group()
     oven.position.set(2.7, 0, -0.2)
     scene.add(oven)
 
-    box(oven, [1.7, 1.8, 1.5], ovenMat, [0, 0.95, 0])
+    box(oven, [1.7, 1.8, 1.5], mats.oven, [0, 0.95, 0])
+
+    // Oven arch
 
     const arch = new THREE.Mesh(
       new THREE.TorusGeometry(0.55, 0.13, 20, 48, Math.PI),
@@ -344,7 +555,7 @@ const PizzaKitchen = () => {
     box(
       oven,
       [1.05, 0.9, 0.06],
-      material('#17100d'),
+      mats.dark,
       [0, 1.05, 0.77]
     )
 
@@ -352,9 +563,13 @@ const PizzaKitchen = () => {
     fireGroup.position.set(0, 0.9, 0.84)
     oven.add(fireGroup)
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 9; i++) {
       const flame = new THREE.Mesh(
-        new THREE.ConeGeometry(0.12, 0.5 + Math.random() * 0.3, 12),
+        new THREE.ConeGeometry(
+          0.12,
+          0.5 + Math.random() * 0.3,
+          12
+        ),
         new THREE.MeshBasicMaterial({
           color: i % 2 ? '#ff9a28' : '#ff4515',
           transparent: true,
@@ -371,107 +586,393 @@ const PizzaKitchen = () => {
       fireGroup.add(flame)
     }
 
-    box(oven, [1.4, 0.12, 1.2], material('#b9a18b'), [0, 0.18, 0.05])
+    box(
+      oven,
+      [1.4, 0.12, 1.2],
+      material('#b9a18b'),
+      [0, 0.18, 0.05]
+    )
+
+    // PIZZA PEEL
 
     const peel = new THREE.Group()
     peel.position.set(1.5, 1.13, 0.3)
     scene.add(peel)
 
-    box(peel, [0.65, 0.035, 0.7], wood, [0, 0, 0])
-    cylinder(peel, 0.045, 0.045, 1.05, wood, [0, 0, 0.75])
+    box(peel, [0.65, 0.035, 0.7], mats.wood, [0, 0, 0])
+    cylinder(peel, 0.045, 0.045, 1.05, mats.wood, [0, 0, 0.75])
 
-    const ceilingLight = new THREE.PointLight('#ffd8a0', 3, 10)
-    ceilingLight.position.set(0, 5, 1)
-    scene.add(ceilingLight)
+    // Finished pizza inside oven
+
+    const ovenPizza = new THREE.Group()
+    ovenPizza.position.set(2.7, 0.65, 0.8)
+    scene.add(ovenPizza)
+
+    const bakedBase = cylinder(
+      ovenPizza,
+      0.36,
+      0.36,
+      0.07,
+      mats.doughLight,
+      [0, 0, 0]
+    )
+
+    bakedBase.scale.z = 0.78
+
+    const bakedTop = cylinder(
+      ovenPizza,
+      0.3,
+      0.3,
+      0.025,
+      mats.cheese,
+      [0, 0.05, 0]
+    )
+
+    bakedTop.scale.z = 0.78
+    ovenPizza.visible = false
+
+    // Floating flour particles
+
+    const flourCount = 100
+    const flourGeometry = new THREE.BufferGeometry()
+    const flourPositions = new Float32Array(flourCount * 3)
+    const flourSpeeds = []
+
+    for (let i = 0; i < flourCount; i++) {
+      flourPositions[i * 3] = (Math.random() - 0.5) * 5
+      flourPositions[i * 3 + 1] = Math.random() * 3
+      flourPositions[i * 3 + 2] = Math.random() * 2
+
+      flourSpeeds.push(0.2 + Math.random() * 0.4)
+    }
+
+    flourGeometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(flourPositions, 3)
+    )
+
+    const flour = new THREE.Points(
+      flourGeometry,
+      new THREE.PointsMaterial({
+        color: '#f5e8cf',
+        size: 0.035,
+        transparent: true,
+        opacity: 0.6
+      })
+    )
+
+    scene.add(flour)
+
+    // STEAM PARTICLES
+
+    const steamParticles = []
+
+    for (let i = 0; i < 12; i++) {
+      const particle = sphere(
+        scene,
+        0.06 + Math.random() * 0.04,
+        new THREE.MeshBasicMaterial({
+          color: '#fff0dd',
+          transparent: true,
+          opacity: 0.22
+        }),
+        [2.7 + (Math.random() - 0.5) * 0.6, 1.6, 0.8]
+      )
+
+      steamParticles.push(particle)
+    }
+
+    // Animation helpers
+
+    const smooth = (current, target, speed) =>
+      THREE.MathUtils.lerp(current, target, speed)
 
     const clock = new THREE.Clock()
+    let elapsedTotal = 0
+    let lastStage = -1
 
     const animate = () => {
       if (disposed) return
 
       animationFrame = requestAnimationFrame(animate)
 
-      const elapsed = clock.getElapsedTime()
-      const phase = elapsed % 28
+      const delta = Math.min(clock.getDelta(), 0.04)
+      elapsedTotal += delta
 
-      chef.position.y = Math.sin(elapsed * 1.7) * 0.015
-      head.rotation.x = Math.sin(elapsed * 0.8) * 0.04
-      head.rotation.y = Math.sin(elapsed * 0.5) * 0.08
+      const elapsed = elapsedTotal
+      const cycleDuration = 48
+      const cycleTime = elapsed % cycleDuration
+      const currentStage = Math.floor(cycleTime / 6)
+      const stageTime = cycleTime % 6
 
-      if (phase < 6) {
-        arms[0].shoulder.rotation.z =
-          -0.7 + Math.sin(elapsed * 4) * 0.12
-
-        arms[1].shoulder.rotation.z =
-          0.7 + Math.sin(elapsed * 4) * 0.12
-
-        arms[0].elbow.rotation.z = -0.3
-        arms[1].elbow.rotation.z = 0.3
-
-        head.rotation.x = 0.15
-      } else if (phase < 13) {
-        arms[0].shoulder.rotation.z =
-          -0.95 + Math.sin(elapsed * 6) * 0.15
-
-        arms[1].shoulder.rotation.z =
-          0.95 - Math.sin(elapsed * 6) * 0.15
-
-        arms[0].elbow.rotation.z = Math.sin(elapsed * 5) * 0.3
-        arms[1].elbow.rotation.z = -Math.sin(elapsed * 5) * 0.3
-
-        pizza.rotation.y = Math.sin(elapsed * 2) * 0.08
-        head.rotation.x = 0.2
-      } else if (phase < 20) {
-        arms[0].shoulder.rotation.z =
-          -1 + Math.sin(elapsed * 5) * 0.18
-
-        arms[1].shoulder.rotation.z =
-          1 + Math.cos(elapsed * 5) * 0.18
-
-        arms[0].elbow.rotation.z = 0.35
-        arms[1].elbow.rotation.z = -0.35
-
-        toppings.visible = true
-        head.rotation.x = 0.1
-      } else {
-        arms[0].shoulder.rotation.z = -0.8
-        arms[1].shoulder.rotation.z = 0.8
-
-        arms[0].elbow.rotation.z = -0.5
-        arms[1].elbow.rotation.z = 0.5
-
-        peel.rotation.x = Math.sin(elapsed * 2) * 0.04
-        head.rotation.x = 0.05
+      if (currentStage !== lastStage) {
+        lastStage = currentStage
+        setStage(currentStage)
       }
+
+      // Natural chef body movement
+
+      chef.position.y = Math.sin(elapsed * 2.1) * 0.012
+      chef.rotation.z = Math.sin(elapsed * 0.8) * 0.025
+
+      head.rotation.x = smooth(
+        head.rotation.x,
+        currentStage === 6 ? -0.15 : 0.05,
+        0.04
+      )
+
+      head.rotation.y = Math.sin(elapsed * 0.65) * 0.08
+
+      // Default arm positions
+
+      let leftShoulder = -0.35
+      let rightShoulder = 0.35
+      let leftElbow = -0.3
+      let rightElbow = 0.3
+      let bodyLean = 0
+
+      // STAGE 1: Preparing dough
+
+      if (currentStage === 0) {
+        leftShoulder = -0.6 + Math.sin(elapsed * 2) * 0.12
+        rightShoulder = 0.6 + Math.sin(elapsed * 2 + 1) * 0.12
+
+        leftElbow = -0.5
+        rightElbow = 0.5
+        bodyLean = -0.05
+      }
+
+      // STAGE 2: Kneading dough
+
+      if (currentStage === 1) {
+        const knead = Math.sin(stageTime * 3.5)
+
+        leftShoulder = -0.85 + knead * 0.15
+        rightShoulder = 0.85 - knead * 0.15
+
+        leftElbow = -0.65 + knead * 0.12
+        rightElbow = 0.65 - knead * 0.12
+
+        bodyLean = -0.12
+        dough.scale.set(
+          1 + Math.sin(stageTime * 3) * 0.025,
+          1,
+          0.78
+        )
+      }
+
+      // STAGE 3: Rolling pizza dough
+
+      if (currentStage === 2) {
+        const roll = Math.sin(stageTime * 3)
+
+        leftShoulder = -0.9 + roll * 0.12
+        rightShoulder = 0.9 - roll * 0.12
+
+        leftElbow = -0.7
+        rightElbow = 0.7
+
+        rollingPin.rotation.z = roll * 0.18
+        rollingPin.position.x = -1.9 + roll * 0.18
+        bodyLean = -0.1
+      }
+
+      // STAGE 4: Chopping vegetables
+
+      if (currentStage === 3) {
+        const chop = Math.abs(Math.sin(stageTime * 5))
+
+        leftShoulder = -0.35
+        rightShoulder = 0.95 - chop * 0.3
+
+        leftElbow = -0.35
+        rightElbow = 0.3 + chop * 0.5
+
+        knife.rotation.z = chop * 0.35
+        knife.position.y = 1.45 - chop * 0.12
+
+        head.rotation.x = 0.22
+        bodyLean = -0.14
+      }
+
+      // STAGE 5: Spreading sauce
+
+      if (currentStage === 4) {
+        const spread = Math.sin(stageTime * 2.8)
+
+        leftShoulder = -0.4
+        rightShoulder = 0.75 + spread * 0.15
+
+        leftElbow = -0.3
+        rightElbow = 0.5 + spread * 0.25
+
+        spoon.rotation.z = spread * 0.4
+        pizza.rotation.y = spread * 0.08
+
+        bodyLean = -0.1
+      }
+
+      // STAGE 6: Adding cheese and toppings
+
+      if (currentStage === 5) {
+        const add = Math.sin(stageTime * 3.5)
+
+        leftShoulder = -0.7 + add * 0.15
+        rightShoulder = 0.75 - add * 0.2
+
+        leftElbow = -0.45
+        rightElbow = 0.5 + add * 0.2
+
+        toppings.visible = stageTime > 0.5
+        toppings.rotation.y = Math.sin(stageTime * 1.5) * 0.12
+
+        bodyLean = -0.08
+      }
+
+      // STAGE 7: Putting pizza in oven
+
+      if (currentStage === 6) {
+        leftShoulder = -1.1
+        rightShoulder = 1.1
+
+        leftElbow = -0.7
+        rightElbow = 0.7
+
+        peel.position.x = smooth(
+          peel.position.x,
+          stageTime < 3 ? 2.1 : 1.5,
+          0.025
+        )
+
+        ovenPizza.visible = stageTime > 2.5
+        bodyLean = -0.08
+      }
+
+      // STAGE 8: Taking baked pizza out
+
+      if (currentStage === 7) {
+        leftShoulder = -0.65
+        rightShoulder = 0.95
+
+        leftElbow = -0.4
+        rightElbow = 0.65
+
+        peel.position.x = smooth(
+          peel.position.x,
+          stageTime < 3 ? 1.5 : 1.9,
+          0.025
+        )
+
+        ovenPizza.visible = true
+        ovenPizza.position.x = smooth(
+          ovenPizza.position.x,
+          stageTime < 3 ? 2.7 : 3.3,
+          0.02
+        )
+
+        bodyLean = -0.05
+      }
+
+      // Smooth arm movement
+
+      arms[0].shoulder.rotation.z = smooth(
+        arms[0].shoulder.rotation.z,
+        leftShoulder,
+        0.09
+      )
+
+      arms[1].shoulder.rotation.z = smooth(
+        arms[1].shoulder.rotation.z,
+        rightShoulder,
+        0.09
+      )
+
+      arms[0].elbow.rotation.z = smooth(
+        arms[0].elbow.rotation.z,
+        leftElbow,
+        0.1
+      )
+
+      arms[1].elbow.rotation.z = smooth(
+        arms[1].elbow.rotation.z,
+        rightElbow,
+        0.1
+      )
+
+      chef.rotation.x = smooth(
+        chef.rotation.x,
+        bodyLean,
+        0.04
+      )
+
+      // Eye/head movement
+
+      head.rotation.y += Math.sin(elapsed * 1.2) * 0.0008
+
+      // Oven fire animation
 
       fireGroup.children.forEach((flame, i) => {
         flame.scale.y = 0.8 + Math.sin(elapsed * 8 + i) * 0.3
         flame.rotation.z = Math.sin(elapsed * 4 + i) * 0.12
       })
 
-      ovenLight.intensity = 10 + Math.sin(elapsed * 5) * 3
+      ovenLight.intensity = 12 + Math.sin(elapsed * 5) * 3
 
-      camera.position.x = Math.sin(elapsed * 0.2) * 0.12
-      camera.lookAt(0, 1.35, 0)
+      // Floating flour
+
+      const positions = flour.geometry.attributes.position.array
+
+      for (let i = 0; i < flourCount; i++) {
+        positions[i * 3 + 1] += delta * flourSpeeds[i]
+
+        positions[i * 3] += Math.sin(elapsed + i) * delta * 0.08
+
+        if (positions[i * 3 + 1] > 3.5) {
+          positions[i * 3 + 1] = 0.8
+        }
+      }
+
+      flour.geometry.attributes.position.needsUpdate = true
+
+      // Oven steam
+
+      steamParticles.forEach((particle, i) => {
+        particle.position.y += delta * (0.25 + i * 0.01)
+        particle.position.x += Math.sin(elapsed + i) * delta * 0.12
+
+        if (particle.position.y > 3) {
+          particle.position.y = 1.5
+          particle.position.x = 2.7 + (Math.random() - 0.5) * 0.6
+        }
+
+        particle.material.opacity =
+          0.12 + Math.sin(elapsed * 2 + i) * 0.08
+      })
+
+      // Gentle camera movement
+
+      camera.position.x = Math.sin(elapsed * 0.18) * 0.12
+      camera.lookAt(0, 1.4, 0)
 
       renderer.render(scene, camera)
     }
 
     animate()
 
-    const handleResize = () => {
-      if (!container || disposed) return
+    const resizeObserver = new ResizeObserver(() => {
+      if (disposed) return
 
       const width = container.clientWidth
       const height = container.clientHeight
+
+      if (!width || !height) return
 
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       renderer.setSize(width, height)
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    }
+    })
 
-    const resizeObserver = new ResizeObserver(handleResize)
     resizeObserver.observe(container)
 
     return () => {
@@ -500,18 +1001,19 @@ const PizzaKitchen = () => {
   }, [])
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#49372c] bg-[#211b18]">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-[#49372c] bg-[#211713] shadow-2xl">
+      <div className="flex items-center justify-between border-b border-white/10 bg-[#30221b] px-4 py-4">
         <div>
-          <p className="text-sm font-bold tracking-wide text-white">
+          <p className="text-sm font-bold tracking-[2px] text-white">
             THE PIZZA KITCHEN
           </p>
+
           <p className="mt-1 text-xs text-orange-200/70">
-            Live preparation scene
+            Fresh ingredients. Freshly prepared.
           </p>
         </div>
 
-        <span className="flex items-center gap-2 text-xs font-semibold text-green-400">
+        <span className="flex items-center gap-2 rounded-full bg-green-500/10 px-3 py-2 text-xs font-bold text-green-400">
           <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
           LIVE
         </span>
@@ -519,12 +1021,34 @@ const PizzaKitchen = () => {
 
       <div
         ref={mountRef}
-        className="h-[320px] w-full sm:h-[430px]"
+        className="h-[340px] w-full sm:h-[460px]"
       />
 
-      <div className="flex items-center justify-center gap-2 border-t border-white/10 px-3 py-3 text-xs text-orange-100/80">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-orange-400" />
-        Chef is working on your fresh pizza
+      <div className="border-t border-white/10 bg-[#30221b] px-4 py-4">
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+          <span className="text-xs font-bold uppercase tracking-[2px] text-orange-300">
+            Current Kitchen Activity
+          </span>
+
+          <p className="text-sm font-semibold text-white sm:text-base">
+            {kitchenStages[stage]}
+          </p>
+
+          <div className="mt-2 flex items-center gap-1.5">
+            {kitchenStages.map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  index === stage
+                    ? 'w-8 bg-orange-400'
+                    : index < stage
+                      ? 'w-3 bg-green-500'
+                      : 'w-3 bg-white/20'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -539,7 +1063,6 @@ const readSavedOrders = () => {
       if (Array.isArray(parsed)) return parsed
     }
 
-    // Purane saved order ko bhi database se verify kiya jayega
     const oldOrderData = localStorage.getItem(OLD_ORDER_KEY)
 
     if (oldOrderData) {
@@ -592,7 +1115,7 @@ const OrderSuccess = () => {
   const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(Date.now())
 
-  // Fetch count from MongoDB and verify saved orders
+  // Fetch database order count and verify saved orders
   useEffect(() => {
     let cancelled = false
 
@@ -614,7 +1137,6 @@ const OrderSuccess = () => {
 
         setDatabaseOrderCount(total)
 
-        // Database mein zero orders hain to localStorage bhi clear
         if (total === 0) {
           setOrders([])
           clearSavedOrders()
@@ -626,7 +1148,6 @@ const OrderSuccess = () => {
 
         let candidateOrders = [...savedOrders]
 
-        // Current successful order ko list mein include karo
         if (currentOrder) {
           const currentId = getOrderId(currentOrder)
 
@@ -645,7 +1166,6 @@ const OrderSuccess = () => {
           }
         }
 
-        // Har saved order ko MongoDB se verify karo
         const verifiedOrders = await Promise.all(
           candidateOrders.map(async (item) => {
             const orderNumber = item.order?.orderNumber
@@ -691,7 +1211,6 @@ const OrderSuccess = () => {
           JSON.stringify(validOrders)
         )
 
-        // Purane storage keys ki zaroorat nahi
         localStorage.removeItem(OLD_ORDER_KEY)
         localStorage.removeItem(OLD_TIMER_KEY)
 
@@ -717,7 +1236,7 @@ const OrderSuccess = () => {
     }
   }, [location.state])
 
-  // Save only database-verified orders
+  // Save verified orders
   useEffect(() => {
     if (loading || error) return
 
@@ -731,7 +1250,7 @@ const OrderSuccess = () => {
     }
   }, [orders, loading, error])
 
-  // Countdown timer
+  // Countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now())
@@ -740,12 +1259,11 @@ const OrderSuccess = () => {
     return () => clearInterval(timer)
   }, [])
 
-  const getRemainingTime = (expiresAt) => {
-    return Math.max(
+  const getRemainingTime = (expiresAt) =>
+    Math.max(
       0,
       Math.floor((expiresAt - currentTime) / 1000)
     )
-  }
 
   const formatTime = (expiresAt) => {
     const timeLeft = getRemainingTime(expiresAt)
@@ -766,6 +1284,7 @@ const OrderSuccess = () => {
       <div className="flex min-h-[65vh] items-center justify-center px-4 font-[Arial]">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-red-100 border-t-red-600" />
+
           <p className="mt-4 font-semibold text-gray-600">
             Checking your orders...
           </p>
@@ -807,11 +1326,13 @@ const OrderSuccess = () => {
         </h2>
 
         <p className="mt-2 text-gray-500">
-          There are currently 0 orders in the database.
+          {databaseOrderCount === 0
+            ? 'There are currently 0 orders in the database.'
+            : 'No saved orders were found on this device.'}
         </p>
 
         <p className="mt-3 rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-600">
-          {databaseOrderCount} Orders
+          {databaseOrderCount} {databaseOrderCount === 1 ? 'Order' : 'Orders'}
         </p>
 
         <Link
