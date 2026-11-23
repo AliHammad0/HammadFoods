@@ -9,10 +9,7 @@ import {
   FaSyncAlt
 } from 'react-icons/fa'
 
-const API_URL = (
-  import.meta.env.VITE_API_URL ||
-  'https://hammadfoods-backend.vercel.app/api/v1'
-).replace(/\/+$/, '')
+const API_URL = 'https://hammadfoods-backend.vercel.app/api/v1'
 
 const MyOrders = () => {
   const navigate = useNavigate()
@@ -285,7 +282,10 @@ const MyOrders = () => {
                       </div>
 
                       <p className="shrink-0 text-sm font-bold text-gray-900">
-                        {formatPrice(item.subtotal ?? item.price * (item.quantity || 1))}
+                        {formatPrice(
+                          item.subtotal ??
+                          (item.price || 0) * (item.quantity || 1)
+                        )}
                       </p>
                     </div>
                   ))}
