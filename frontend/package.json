@@ -30,6 +30,7 @@
     "react-toastify": "^11.2.0",
     "sweetalert2": "^11.26.25",
     "tailwindcss": "^4.3.5",
+    "three": "^0.187.0",
     "yup": "^1.7.1"
   },
   "devDependencies": {
