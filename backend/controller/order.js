@@ -232,16 +232,16 @@ export const getMyOrders = async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req)
 
+    const userEmail = user.email?.trim().toLowerCase()
+
     const orders = await Order.find({
       $or: [
         { user: user._id },
         {
-          user: null,
-          'customer.email': user.email
-        },
-        {
-          user: { $exists: false },
-          'customer.email': user.email
+          'customer.email': {
+            $regex: `^${userEmail}$`,
+            $options: 'i'
+          }
         }
       ]
     })
