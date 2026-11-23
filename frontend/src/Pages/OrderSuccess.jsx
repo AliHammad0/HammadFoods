@@ -354,8 +354,6 @@ const PizzaKitchen = () => {
       )
 
       sphere(elbow, 0.11, skin, [0, -0.42, 0.02])
-
-      // Hand
       sphere(elbow, 0.095, skin, [0, -0.44, 0.03])
 
       arms.push({ shoulder, elbow, side })
@@ -435,12 +433,10 @@ const PizzaKitchen = () => {
       const elapsed = clock.getElapsedTime()
       const phase = elapsed % 28
 
-      // Natural chef body movement
       chef.position.y = Math.sin(elapsed * 1.7) * 0.015
       head.rotation.x = Math.sin(elapsed * 0.8) * 0.04
       head.rotation.y = Math.sin(elapsed * 0.5) * 0.08
 
-      // Ingredient preparation
       if (phase < 6) {
         arms[0].shoulder.rotation.z =
           -0.7 + Math.sin(elapsed * 4) * 0.12
@@ -452,10 +448,7 @@ const PizzaKitchen = () => {
         arms[1].elbow.rotation.z = 0.3
 
         head.rotation.x = 0.15
-      }
-
-      // Kneading and stretching dough
-      else if (phase < 13) {
+      } else if (phase < 13) {
         arms[0].shoulder.rotation.z =
           -0.95 + Math.sin(elapsed * 6) * 0.15
 
@@ -467,10 +460,7 @@ const PizzaKitchen = () => {
 
         pizza.rotation.y = Math.sin(elapsed * 2) * 0.08
         head.rotation.x = 0.2
-      }
-
-      // Adding toppings
-      else if (phase < 20) {
+      } else if (phase < 20) {
         arms[0].shoulder.rotation.z =
           -1 + Math.sin(elapsed * 5) * 0.18
 
@@ -482,10 +472,7 @@ const PizzaKitchen = () => {
 
         toppings.visible = true
         head.rotation.x = 0.1
-      }
-
-      // Moving pizza towards oven
-      else {
+      } else {
         arms[0].shoulder.rotation.z = -0.8
         arms[1].shoulder.rotation.z = 0.8
 
@@ -504,7 +491,6 @@ const PizzaKitchen = () => {
 
       ovenLight.intensity = 10 + Math.sin(elapsed * 5) * 3
 
-      // Camera subtle movement
       camera.position.x = Math.sin(elapsed * 0.2) * 0.12
       camera.lookAt(0, 1.35, 0)
 
@@ -588,10 +574,41 @@ const OrderSuccess = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const order = location.state?.order
+  const [order, setOrder] = useState(() => {
+    if (location.state?.order) {
+      return location.state.order
+    }
+
+    try {
+      const savedOrder = localStorage.getItem('hammad-foods-last-order')
+      return savedOrder ? JSON.parse(savedOrder) : null
+    } catch (error) {
+      console.error('Unable to load saved order:', error)
+      return null
+    }
+  })
 
   const [timeLeft, setTimeLeft] = useState(30 * 60)
 
+  // Save newly placed order
+  useEffect(() => {
+    if (!location.state?.order) return
+
+    const newOrder = location.state.order
+
+    try {
+      localStorage.setItem(
+        'hammad-foods-last-order',
+        JSON.stringify(newOrder)
+      )
+
+      setOrder(newOrder)
+    } catch (error) {
+      console.error('Unable to save order:', error)
+    }
+  }, [location.state])
+
+  // Countdown
   useEffect(() => {
     if (!order) return
 
@@ -661,13 +678,11 @@ const OrderSuccess = () => {
 
         {/* Timer */}
         <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-5">
-
           <p className="text-sm font-bold uppercase tracking-wider text-gray-700">
             Estimated Preparation Time
           </p>
 
           <div className="mt-3 flex items-center justify-center gap-2">
-
             <div className="min-w-20 rounded-xl bg-white px-4 py-3 shadow-sm">
               <p className="text-4xl font-extrabold tabular-nums text-red-600">
                 {minutes}
@@ -687,7 +702,6 @@ const OrderSuccess = () => {
                 SECONDS
               </p>
             </div>
-
           </div>
 
           <p className="mt-4 text-sm font-medium text-gray-600">
@@ -699,14 +713,12 @@ const OrderSuccess = () => {
 
         {/* Order Details */}
         <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5 text-left">
-
           <div className="flex items-center gap-2 text-gray-900">
             <FaClipboardList className="text-red-600" />
             <span className="font-bold">Order Details</span>
           </div>
 
           <div className="mt-5 space-y-4 text-sm">
-
             <div className="flex justify-between gap-3">
               <span className="text-gray-500">Order Number</span>
               <span className="break-all text-right font-bold text-gray-900">
@@ -746,7 +758,6 @@ const OrderSuccess = () => {
                 </span>
               </div>
             </div>
-
           </div>
         </div>
 
